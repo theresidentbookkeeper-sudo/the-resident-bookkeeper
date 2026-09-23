@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="The Resident Bookkeeper — practical bookkeeping, clean records and clear financial reporting for growing businesses.">
+<title>The Resident Bookkeeper | Clean Books. Clear Numbers. Better Decisions.</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<style>
+:root{--ink:#1a1512;--red:#d6291b;--cream:#f7f4ef;--paper:#fffdf9;--muted:#6d665f;--line:#e8e0d7;--green:#176b52;--shadow:0 18px 50px rgba(26,21,18,.09)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--cream);line-height:1.55}a{text-decoration:none;color:inherit}.wrap{width:min(1160px,92%);margin:auto}
+header{position:sticky;top:0;z-index:50;background:rgba(247,244,239,.9);backdrop-filter:blur(16px);border-bottom:1px solid rgba(232,224,215,.8)}
+.nav{height:76px;display:flex;align-items:center;justify-content:space-between;gap:24px}.brand{display:flex;align-items:center;gap:11px;font-weight:800}.mark{width:42px;height:42px;border:2px solid var(--ink);border-radius:50%;display:grid;place-items:center;font-family:Georgia,serif;font-size:22px}.mark b{color:var(--red)}.brand small{display:block;color:var(--red);letter-spacing:.2em;font-size:9px}.brand span{display:block;font-size:14px;letter-spacing:.03em}
+.navlinks{display:flex;gap:22px;align-items:center;font-size:14px;color:#514b45}.navlinks a:hover{color:var(--red)}.navcta{background:var(--ink);color:white;padding:11px 17px;border-radius:10px;font-weight:700}.navcta:hover{background:var(--red)}
+.hero{padding:84px 0 72px;background:radial-gradient(circle at 10% 10%,rgba(214,41,27,.13),transparent 35%),radial-gradient(circle at 90% 20%,rgba(23,107,82,.10),transparent 30%),linear-gradient(180deg,#fbf9f5,#f3eee7)}
+.hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:54px;align-items:center}.eyebrow{display:inline-flex;padding:7px 11px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:11px;font-weight:800;letter-spacing:.12em;color:var(--red);text-transform:uppercase}
+h1{font:700 clamp(42px,6vw,72px)/1.02 Georgia,serif;letter-spacing:-.045em;margin:20px 0}.hero h1 em{color:var(--red);font-style:normal}.lead{font-size:19px;color:var(--muted);max-width:650px}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}.btn{display:inline-flex;align-items:center;justify-content:center;padding:14px 20px;border-radius:11px;font-weight:800;border:1px solid transparent}.primary{background:var(--red);color:#fff}.primary:hover{background:#b92116}.secondary{background:#fff;border-color:var(--line)}.secondary:hover{border-color:#c9bcb0}
+.hero-card{background:rgba(255,253,249,.82);border:1px solid rgba(255,255,255,.9);box-shadow:var(--shadow);border-radius:26px;padding:28px;transform:rotate(1deg)}.hero-card h3{font:700 27px Georgia,serif;margin:0 0 12px}.mini{display:grid;gap:12px;margin-top:20px}.mini div{padding:14px;border-radius:14px;background:#fff;border:1px solid var(--line)}.mini b{display:block}.mini span{font-size:13px;color:var(--muted)}
+section{padding:78px 0}.section-head{max-width:700px;margin-bottom:38px}.section-head h2{font:700 clamp(32px,4vw,48px)/1.08 Georgia,serif;margin:8px 0 12px}.section-head p{color:var(--muted);font-size:17px}.kicker{color:var(--red);font-size:11px;font-weight:900;letter-spacing:.15em;text-transform:uppercase}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.card{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:25px;box-shadow:0 8px 25px rgba(26,21,18,.04)}.card .num{font-size:12px;color:var(--red);font-weight:900}.card h3{font:700 24px Georgia,serif;margin:11px 0 8px}.card p{color:var(--muted);margin:0}.card ul{padding-left:18px;color:var(--muted);font-size:14px}.card li{margin:6px 0}
+.band{background:var(--ink);color:#fff}.band .section-head p{color:#cfc7bf}.promise{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.promise div{padding:20px;border:1px solid rgba(255,255,255,.14);border-radius:15px}.promise b{display:block;margin-bottom:5px}.promise span{color:#c9c1ba;font-size:13px}
+.packages{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}.package{background:#fff;border:1px solid var(--line);border-radius:18px;padding:23px}.package h3{margin:0 0 7px;font:700 23px Georgia,serif}.package p{color:var(--muted);font-size:14px}.package a{color:var(--red);font-weight:800;font-size:13px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.step{padding:25px;border-top:3px solid var(--red);background:#fff;border-radius:0 0 16px 16px}.step strong{font-size:12px;color:var(--red);letter-spacing:.1em}.step h3{font:700 23px Georgia,serif;margin:8px 0}.step p{color:var(--muted)}
+.cta{background:linear-gradient(135deg,#fff,#f1e9df);border:1px solid var(--line);border-radius:28px;padding:46px;display:flex;justify-content:space-between;gap:30px;align-items:center}.cta h2{font:700 42px/1.05 Georgia,serif;margin:0 0 10px}.cta p{color:var(--muted);max-width:650px;margin:0}
+.contact-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:24px}.contact-card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:28px}.contact-card h3{font:700 26px Georgia,serif;margin-top:0}.contact-line{padding:13px 0;border-bottom:1px solid var(--line)}.contact-line:last-child{border-bottom:0}.contact-line small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.1em}
+form{display:grid;gap:12px}label{font-size:13px;font-weight:700}input,select,textarea{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:10px;background:#fff;font:inherit}textarea{min-height:120px;resize:vertical}button{border:0;cursor:pointer;font:inherit}
+footer{background:#11100f;color:#e8e1da;padding:40px 0}.footer-grid{display:flex;justify-content:space-between;gap:25px}.footer-grid p{color:#a9a19a;font-size:13px}.footer-links{display:flex;gap:18px;font-size:13px}.footer-links a:hover{color:#fff}
+@media(max-width:850px){.navlinks{display:none}.hero-grid,.contact-grid{grid-template-columns:1fr}.hero{padding-top:55px}.cards,.steps{grid-template-columns:1fr 1fr}.packages{grid-template-columns:1fr 1fr}.promise{grid-template-columns:1fr 1fr}.hero-card{transform:none}}
+@media(max-width:560px){section{padding:58px 0}.cards,.steps,.packages,.promise{grid-template-columns:1fr}.cta{padding:30px;display:block}.cta h2{font-size:34px}.cta .actions{margin-top:22px}.hero h1{font-size:47px}.footer-grid{display:block}.footer-links{margin-top:20px;flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<header><div class="wrap nav">
+<a class="brand" href="#top"><div class="mark"><span>R<b>B</b></span></div><div><small>THE RESIDENT</small><span>BOOKKEEPER</span></div></a>
+<nav class="navlinks"><a href="#services">Services</a><a href="#packages">Packages</a><a href="#process">How it works</a><a href="#contact">Contact</a><a class="navcta" href="/">Client Platform</a></nav>
+</div></header>
+
+<main id="top">
+<section class="hero"><div class="wrap hero-grid">
+<div><span class="eyebrow">Bookkeeping that makes sense</span><h1>Clean books.<br><em>Clear numbers.</em><br>Better decisions.</h1><p class="lead">Practical bookkeeping support for small businesses, entrepreneurs and growing teams — so your records stay organized and you can actually understand what your numbers are saying.</p><div class="actions"><a class="btn primary" href="#contact">Request a bookkeeping review</a><a class="btn secondary" href="https://wa.me/2348026000078?text=Hello%20The%20Resident%20Bookkeeper%2C%20I%27d%20like%20to%20discuss%20bookkeeping%20support.">Chat on WhatsApp</a></div></div>
+<div class="hero-card"><h3>Your numbers should answer questions — not create them.</h3><p>We help turn scattered transactions, overdue reconciliations and unfinished records into a bookkeeping system you can rely on.</p><div class="mini"><div><b>✓ Organized records</b><span>Transactions categorized and kept current.</span></div><div><b>✓ Reconciled accounts</b><span>Bank and platform balances checked against your books.</span></div><div><b>✓ Useful reports</b><span>Financial information presented clearly for decisions.</span></div></div></div>
+</div></section>
+
+<section id="services"><div class="wrap"><div class="section-head"><span class="kicker">What we do</span><h2>Bookkeeping support built around your business.</h2><p>Choose ongoing support, a clean-up project, or a specific service when you need an extra pair of experienced hands.</p></div>
+<div class="cards">
+<div class="card"><span class="num">01 · MONTHLY</span><h3>Ongoing Bookkeeping</h3><p>Keep your books current without carrying the whole workload yourself.</p><ul><li>Transaction categorization</li><li>Bank and account reconciliation</li><li>Monthly bookkeeping review</li><li>Management-ready reports</li></ul></div>
+<div class="card"><span class="num">02 · CLEAN-UP</span><h3>Catch-up & Clean-up</h3><p>Behind on your records? We work through the backlog and bring the books back under control.</p><ul><li>Historical transaction entry</li><li>Reconciliation of outstanding periods</li><li>Duplicate and classification review</li><li>Clean closing position</li></ul></div>
+<div class="card"><span class="num">03 · SPECIALIST</span><h3>Individual Services</h3><p>Get help with the bookkeeping task that is holding you up.</p><ul><li>Bank reconciliation</li><li>Accounts receivable/payable support</li><li>Financial report preparation</li><li>Accounting-system setup support</li></ul></div>
+</div></div></section>
+
+<section class="band"><div class="wrap"><div class="section-head"><span class="kicker" style="color:#ff8b7f">Why The Resident Bookkeeper</span><h2>Professional support without making your business feel complicated.</h2><p>Our approach is practical: understand the business, keep the records clean, communicate clearly and give you information you can use.</p></div><div class="promise">
+<div><b>Practical</b><span>We focus on getting the work done, not burying you in jargon.</span></div>
+<div><b>Confidential</b><span>Your financial records are handled with care and controlled access.</span></div>
+<div><b>Flexible</b><span>Use us for ongoing bookkeeping or a defined clean-up project.</span></div>
+<div><b>Clear</b><span>Reports and explanations are designed to help you understand your numbers.</span></div>
+</div></div></section>
+
+<section id="packages"><div class="wrap"><div class="section-head"><span class="kicker">Flexible options</span><h2>Start where your business is today.</h2><p>Not every business needs the same level of support. Tell us what you need and we will scope the right service instead of forcing you into a one-size-fits-all package.</p></div>
+<div class="packages">
+<div class="package"><h3>Starter</h3><p>For small businesses that need their bookkeeping kept organized and current.</p><a href="#contact">Ask for a quote →</a></div>
+<div class="package"><h3>Growth</h3><p>For businesses with more activity that need regular reconciliations and reporting.</p><a href="#contact">Ask for a quote →</a></div>
+<div class="package"><h3>Business</h3><p>For established operations needing broader bookkeeping and financial support.</p><a href="#contact">Ask for a quote →</a></div>
+<div class="package"><h3>Catch-up & Clean-up</h3><p>For records that have fallen behind and need a structured recovery project.</p><a href="#contact">Ask for a quote →</a></div>
+</div></div></section>
+
+<section id="process"><div class="wrap"><div class="section-head"><span class="kicker">Simple process</span><h2>From “I need help” to books you can work with.</h2></div><div class="steps">
+<div class="step"><strong>STEP 01</strong><h3>Tell us what is going on.</h3><p>Share your business type, accounting system, bookkeeping status and what you want fixed.</p></div>
+<div class="step"><strong>STEP 02</strong><h3>We review the scope.</h3><p>We clarify the records involved, periods to cover, transaction volume and reporting needs.</p></div>
+<div class="step"><strong>STEP 03</strong><h3>We get to work.</h3><p>You receive a clear scope and the bookkeeping work begins with agreed deliverables and communication.</p></div>
+</div></div></section>
+
+<section><div class="wrap"><div class="cta"><div><h2>Your numbers matter.</h2><p>You do not need to become an accountant to understand your business finances. You need records you can trust and information you can use.</p></div><div class="actions"><a class="btn primary" href="#contact">Let's talk</a><a class="btn secondary" href="/">Open client platform</a></div></div></div></section>
+
+<section id="contact"><div class="wrap"><div class="section-head"><span class="kicker">Start a conversation</span><h2>Tell us what you need help with.</h2><p>Complete the short form and it will open a ready-to-send WhatsApp message. No complicated sales process.</p></div>
+<div class="contact-grid">
+<div class="contact-card"><h3>The Resident Bookkeeper</h3><div class="contact-line"><small>WhatsApp</small><a href="https://wa.me/2348026000078">+234 802 600 0078</a></div><div class="contact-line"><small>Email</small><a href="mailto:theresidentbookkeeper@gmail.com">theresidentbookkeeper@gmail.com</a></div><div class="contact-line"><small>Social</small><a href="https://instagram.com/theresidentbookkeeper">@theresidentbookkeeper</a></div><div class="contact-line"><small>Client platform</small><a href="/">Open the secure platform →</a></div></div>
+<div class="contact-card"><form id="leadForm"><div><label for="name">Your name</label><input id="name" required placeholder="e.g. Ada Okafor"></div><div><label for="business">Business name</label><input id="business" required placeholder="e.g. ABC Stores"></div><div><label for="service">What do you need?</label><select id="service"><option>Monthly bookkeeping</option><option>Catch-up & clean-up</option><option>Bank reconciliation</option><option>Financial reports</option><option>Accounts receivable/payable</option><option>Accounting-system setup support</option><option>Other</option></select></div><div><label for="message">Tell us briefly about your books</label><textarea id="message" placeholder="What accounting system do you use? Are the books current? What period needs attention?"></textarea></div><button class="btn primary" type="submit">Continue on WhatsApp →</button></form></div>
+</div></div></section>
+</main>
+<footer><div class="wrap footer-grid"><div><b>The Resident Bookkeeper</b><p>Practical bookkeeping support for businesses that want cleaner records and clearer numbers.</p></div><div class="footer-links"><a href="#services">Services</a><a href="#packages">Packages</a><a href="#contact">Contact</a><a href="/">Platform</a></div></div></footer>
+<script>
+document.getElementById('leadForm').addEventListener('submit',function(e){
+ e.preventDefault();
+ const n=document.getElementById('name').value.trim(),b=document.getElementById('business').value.trim(),s=document.getElementById('service').value,m=document.getElementById('message').value.trim();
+ const text='Hello The Resident Bookkeeper, I would like to discuss bookkeeping support.%0A%0AName: '+encodeURIComponent(n)+'%0ABusiness: '+encodeURIComponent(b)+'%0AService: '+encodeURIComponent(s)+'%0ADetails: '+encodeURIComponent(m||'Not provided');
+ window.open('https://wa.me/2348026000078?text='+text,'_blank');
+});
+</script>
+</body>
+</html>
