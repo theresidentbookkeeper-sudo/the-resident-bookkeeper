@@ -12,3 +12,18 @@
   from = "/sales-hub"
   to = "/sales-hub.html"
   status = 200
+
+[[redirects]]
+  from = "/business-hub"
+  to = "/business-hub.html"
+  status = 200
+
+[[redirects]]
+  from = "/platform"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/hub"
+  to = "/business-hub.html"
+  status = 200
