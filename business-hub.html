@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Business Hub | The Resident Bookkeeper</title>
+<link rel="icon" href="/favicon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--ink:#151312;--cream:#f6f0e6;--ivory:#fbf8f2;--gold:#b99552;--red:#8f2f2f;--muted:#6d665f;--line:#e6dccf}
+*{box-sizing:border-box}body{margin:0;background:var(--cream);color:var(--ink);font:14px Inter,system-ui,sans-serif}.wrap{width:min(1220px,94%);margin:auto}header{background:rgba(251,248,242,.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}.bar{min-height:76px;display:flex;align-items:center;justify-content:space-between;gap:18px}.brand{font-weight:900;letter-spacing:.04em}.brand span{color:var(--red)}nav{display:flex;gap:8px;flex-wrap:wrap}nav a,.btn{border:1px solid var(--line);background:var(--ivory);color:inherit;text-decoration:none;padding:9px 12px;border-radius:9px;font-weight:750}.btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}main{padding:32px 0 70px}.hero{display:flex;justify-content:space-between;gap:25px;align-items:end;margin-bottom:24px}.eyebrow{color:var(--red);font-weight:900;letter-spacing:.14em;font-size:11px;text-transform:uppercase}.hero h1{font:700 clamp(34px,5vw,56px)/1.05 Georgia,serif;margin:8px 0}.hero p{color:var(--muted);max-width:720px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:rgba(251,248,242,.88);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 10px 28px rgba(21,19,18,.05)}.stat b{font:700 28px Georgia,serif;display:block}.stat span,.small{color:var(--muted)}section{margin-top:22px}.panel{background:var(--ivory);border:1px solid var(--line);border-radius:18px;padding:20px}.panel h2{font:700 25px Georgia,serif;margin:0 0 14px}.ai{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.ai .card{min-height:170px}.ai h3{font:700 20px Georgia,serif;margin:8px 0}.tag{display:inline-block;border:1px solid #d8c8ae;color:#765c2d;background:#f7f0e2;padding:4px 8px;border-radius:999px;font-size:10px;font-weight:800}.flow{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;align-items:stretch}.flow div{padding:16px 10px;text-align:center;border:1px solid var(--line);border-radius:12px;background:#fff}.flow b{display:block}.flow span{font-size:11px;color:var(--muted)}.rows{display:grid;gap:8px}.row{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:12px;padding:12px;border-bottom:1px solid var(--line);align-items:center}.row.head{font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:800}.notice{padding:12px;border-left:3px solid var(--red);background:#f8eee9;margin-top:14px}.needs{display:grid;grid-template-columns:1fr 1fr;gap:14px}.logout{cursor:pointer}@media(max-width:900px){.grid{grid-template-columns:1fr 1fr}.ai{grid-template-columns:1fr 1fr}.flow{grid-template-columns:1fr 1fr}.needs{grid-template-columns:1fr}}@media(max-width:560px){.bar{align-items:flex-start;flex-direction:column;padding:12px 0}.grid,.ai,.flow{grid-template-columns:1fr}.hero{display:block}.row{grid-template-columns:1fr;gap:4px}.row.head{display:none}}
+</style></head>
+<body>
+<header><div class="wrap bar"><div class="brand">THE RESIDENT <span>BOOKKEEPER</span> · BUSINESS HUB</div><nav><a href="/website">Public Website</a><a href="/">Core Platform</a><button class="btn logout" id="logout">Sign out</button></nav></div></header>
+<main class="wrap">
+<div class="hero"><div><div class="eyebrow">Business Operating Platform</div><h1>One business. One operating system.</h1><p>The command layer connecting the public website, leads, customers, sales, finance, employees and the AI team. Human approvals remain with Nancy for sensitive or commercial decisions.</p></div></div>
+<div class="grid" id="stats"><div class="card stat"><b>—</b><span>Leads</span></div><div class="card stat"><b>—</b><span>Customers</span></div><div class="card stat"><b>—</b><span>Open sales</span></div><div class="card stat"><b>—</b><span>AI tasks</span></div></div>
+<section><div class="panel"><h2>AI Employees</h2><div class="ai" id="ai"></div></div></section>
+<section><div class="panel"><h2>Business workflow</h2><div class="flow"><div><b>Public Website</b><span>Home · Services · Pricing · About · Resources · Contact</span></div><div><b>Leads</b><span>Capture & qualify</span></div><div><b>Amara + Maya</b><span>Growth & sales</span></div><div><b>Customers</b><span>Convert & onboard</span></div><div><b>Sales</b><span>Quote → deal</span></div><div><b>Finance</b><span>Invoice → payment → reporting</span></div></div></div></section>
+<section><div class="panel"><h2>Lead pipeline</h2><div id="leads"></div></div></section>
+<section><div class="needs"><div class="panel"><h2>AI activity</h2><div id="tasks"></div></div><div class="panel"><h2>Needs Nancy</h2><div class="notice">Custom pricing, discounts, contracts, refunds, legal/tax matters, financial commitments, sensitive client decisions and major platform changes remain approval items for Nancy.</div></div></div></section>
+</main>
+<script>
+const SUPABASE_URL='https://njhohxhtqkktktngjflb.supabase.co';
+const SUPABASE_KEY='sb_publishable_KqlXsF07Jgj-dS8P382reQ_-ShRBI7O';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+const $=id=>document.getElementById(id);
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+async function boot(){
+ const {data:{session}}=await sb.auth.getSession();
+ if(!session){location.href='/';return}
+ await render();
+}
+async function render(){
+ const [emps,leads,clients,inv,tasks,events]=await Promise.all([
+  sb.from('ai_employees').select('*').order('name'),
+  sb.from('leads').select('id,name,business_type,source,stage,created_at').order('created_at',{ascending:false}).limit(20),
+  sb.from('clients').select('id,name,status').order('created_at',{ascending:false}).limit(20),
+  sb.from('invoices').select('id,status,amount').order('created_at',{ascending:false}).limit(50),
+  sb.from('ai_employee_tasks').select('*,ai_employees(name,role)').order('created_at',{ascending:false}).limit(20),
+  sb.from('platform_events').select('*').order('created_at',{ascending:false}).limit(10)
+ ]);
+ const l=leads.data||[],c=clients.data||[],i=inv.data||[],t=tasks.data||[],e=emps.data||[];
+ $('stats').innerHTML=[['Leads',l.length],['Customers',c.length],['Open sales',i.filter(x=>!['Paid','Cancelled'].includes(x.status)).length],['AI tasks',t.filter(x=>x.status!=='Completed').length]].map(x=>'<div class="card stat"><b>'+x[1]+'</b><span>'+x[0]+'</span></div>').join('');
+ $('ai').innerHTML=e.map(a=>'<div class="card"><span class="tag">'+esc(a.employee_id)+'</span><h3>'+esc(a.name)+'</h3><b>'+esc(a.role)+'</b><p class="small">'+esc(a.description)+'</p></div>').join('');
+ $('leads').innerHTML=l.length?'<div class="rows"><div class="row head"><div>Lead</div><div>Business</div><div>Stage</div><div>Source</div></div>'+l.map(x=>'<div class="row"><div><b>'+esc(x.name)+'</b><div class="small">'+esc(x.id)+'</div></div><div>'+esc(x.business_type||'—')+'</div><div><span class="tag">'+esc(x.stage)+'</span></div><div>'+esc(x.source||'—')+'</div></div>').join('')+'</div>':'<div class="small">No leads captured yet.</div>';
+ $('tasks').innerHTML=t.length?'<div class="rows">'+t.map(x=>'<div class="row"><div><b>'+esc(x.title)+'</b><div class="small">'+esc(x.ai_employees?.name||x.employee_id)+'</div></div><div>'+esc(x.category||'—')+'</div><div>'+esc(x.priority)+'</div><div><span class="tag">'+esc(x.status)+'</span></div></div>').join('')+'</div>':'<div class="small">No AI tasks yet.</div>';
+}
+$('logout').onclick=async()=>{await sb.auth.signOut();location.href='/'};
+boot();
+</script></body></html>
