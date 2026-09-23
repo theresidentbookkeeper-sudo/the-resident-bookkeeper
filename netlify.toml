@@ -1,0 +1,9 @@
+[[redirects]]
+  from = "/website"
+  to = "/website.html"
+  status = 200
+
+[[redirects]]
+  from = "/public"
+  to = "/website.html"
+  status = 200
