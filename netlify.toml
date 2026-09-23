@@ -7,3 +7,8 @@
   from = "/public"
   to = "/website.html"
   status = 200
+
+[[redirects]]
+  from = "/sales-hub"
+  to = "/sales-hub.html"
+  status = 200
