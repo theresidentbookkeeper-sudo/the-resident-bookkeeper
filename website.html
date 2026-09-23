@@ -86,7 +86,7 @@ document.getElementById("leadForm").addEventListener("submit",async function(e){
  e.preventDefault();
  const name=document.getElementById("name").value.trim(),business=document.getElementById("business").value.trim(),service=document.getElementById("service").value,message=document.getElementById("message").value.trim();
  try{
-  const res=await fetch("https://njhohxhtqkktktngjflb.supabase.co/rest/v1/rpc/capture_public_lead",{method:"POST",headers:{"apikey":"sb_publishable_KqlXsF07Jgj-dS8P382reQ_-ShRBI7O","Content-Type":"application/json"},body:JSON.stringify({p_name:name,p_business:business,p_email:null,p_phone:null,p_country:null,p_business_type:null,p_accounting_system:null,p_books_status:null,p_transaction_volume:null,p_bank_accounts:null,p_challenges:null,p_report_frequency:null,p_biggest_concern:message,p_help_needed:service,p_ideal_start:null,p_preferred_contact:"WhatsApp",p_notes:null,p_source:"Public Website"})});
+  const res=await fetch("https://njhohxhtqkktktngjflb.supabase.co/rest/v1/public_lead_intake",{method:"POST",headers:{"apikey":"sb_publishable_KqlXsF07Jgj-dS8P382reQ_-ShRBI7O","Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({name,business,email:null,phone:null,service,message,source:"Public Website"})});
   if(!res.ok)throw new Error("Lead capture failed");
  }catch(err){console.warn(err);}
  const text="Hello The Resident Bookkeeper, I would like to discuss bookkeeping support.\n\nName: "+name+"\nBusiness: "+business+"\nService: "+service+"\nDetails: "+(message||"Not provided");
