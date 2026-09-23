@@ -13,21 +13,65 @@
 <section id="followups"><div class="panel"><h2>Follow-up queue</h2><p class="small">New website leads receive a 0/2/5/10-day WhatsApp follow-up sequence.</p><div id="followupTable"></div></div></section>
 <section><div class="panel"><h2>Connection to your existing platform</h2><div class="grid"><div class="stat"><b>Leads</b><span>Capture, source, service and stage.</span></div><div class="stat"><b>Customers</b><span>Qualified leads are ready for customer conversion.</span></div><div class="stat"><b>Sales</b><span>Package, scope, quote and deal status.</span></div><div class="stat"><b>Finance + Nani</b><span>Won-deal context is kept in the shared sales state for the next integration layer.</span></div></div></div></section>
 </main>
-<script>(function(){const ok=Object.keys(localStorage).some(k=>k.startsWith("sb-")&&k.includes("auth-token"));if(!ok){document.body.innerHTML="<main style=\"font:16px system-ui;padding:40px\"><h2>Internal sales workspace</h2><p>Please sign in to the private platform first.</p><a href=\"/\">Return to sign in</a></main>";throw new Error("Authentication required");}})();</script><script src="/sales-bridge.js"></script><script>
-const $=id=>document.getElementById(id),wa='2348026000078';
-function esc(s){return String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
-function render(){
- const s=TRB.load();
- $('stats').innerHTML=[['New leads',s.leads.filter(x=>x.stage==='New').length],['Total leads',s.leads.length],['Open quotes',s.quotes.filter(x=>x.status!=='Won').length],['Pending follow-ups',s.followups.filter(x=>x.status==='Pending').length]].map(x=>'<div class="stat"><b>'+x[1]+'</b><span>'+x[0]+'</span></div>').join('');
- $('leadTable').innerHTML=s.leads.length?'<div class="table"><table><tr><th>Name</th><th>Business</th><th>Service</th><th>Source</th><th>Stage</th><th>Created</th><th>Action</th></tr>'+s.leads.map(l=>'<tr><td>'+esc(l.name)+'</td><td>'+esc(l.business)+'</td><td>'+esc(l.service)+'</td><td>'+esc(l.source)+'</td><td><span class="pill '+(l.stage==='New'?'new':'')+'">'+esc(l.stage)+'</span></td><td>'+new Date(l.createdAt).toLocaleString()+'</td><td><div class="actions"><button class="btn" onclick="qualify(\''+l.id+'\')">Qualify</button><button class="btn" onclick="whats(\''+l.id+'\')">WhatsApp</button></div></td></tr>').join('')+'</table></div>':'<div class="empty">No website leads yet.</div>';
- $('quoteLead').innerHTML=s.leads.map(l=>'<option value="'+esc(l.id)+'">'+esc(l.name)+' — '+esc(l.business)+'</option>').join('')||'<option value="">No leads yet</option>';
- $('quoteList').innerHTML=s.quotes.length?s.quotes.map(q=>'<div class="quote-card"><b>'+esc(q.package)+'</b> · '+esc(q.status)+' · '+esc(q.amount||'')+'<div class="small">'+esc(q.scope)+'</div></div>').join(''):'<div class="empty">No quotes created yet.</div>';
- $('followupTable').innerHTML=s.followups.length?'<div class="table"><table><tr><th>Due</th><th>Lead</th><th>Follow-up</th><th>Channel</th><th>Status</th><th>Action</th></tr>'+s.followups.sort((a,b)=>new Date(a.dueAt)-new Date(b.dueAt)).map(f=>{const l=s.leads.find(x=>x.id===f.leadId)||{};return '<tr><td>'+new Date(f.dueAt).toLocaleDateString()+'</td><td>'+esc(l.name||'Unknown')+'</td><td>'+esc(f.title)+'</td><td>'+esc(f.channel)+'</td><td><span class="pill">'+esc(f.status)+'</span></td><td><button class="btn" onclick="sendFollow(\''+f.id+'\')">Open WhatsApp</button></td></tr>'}).join('')+'</table></div>':'<div class="empty">Follow-ups will appear here as enquiries arrive.</div>'
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL='https://njhohxhtqkktktngjflb.supabase.co';
+const SUPABASE_KEY='sb_publishable_KqlXsF07Jgj-dS8P382reQ_-ShRBI7O';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+const $=id=>document.getElementById(id);
+const wa='2348026000078';
+let state={leads:[],quotes:[],followups:[]};
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+async function loadState(){
+ const {data:{session}}=await sb.auth.getSession();
+ if(!session){location.href='/';return false}
+ const [leads,quotes,followups]=await Promise.all([
+   sb.from('leads').select('id,name,business_type,phone,email,source,notes,stage,converted,created_at').order('created_at',{ascending:false}).limit(100),
+   sb.from('sales_quotes').select('id,lead_id,package,scope,amount,status,created_at,updated_at').order('created_at',{ascending:false}).limit(100),
+   sb.from('sales_followups').select('id,lead_id,title,message,channel,due_at,status,sent_at').order('due_at',{ascending:true}).limit(200)
+ ]);
+ if(leads.error) throw leads.error;
+ if(quotes.error) throw quotes.error;
+ if(followups.error) throw followups.error;
+ state={leads:leads.data||[],quotes:quotes.data||[],followups:followups.data||[]};
+ return true;
 }
-function qualify(id){TRB.updateLead(id,{stage:'Qualified'});render()}
-function whats(id){const l=TRB.load().leads.find(x=>x.id===id);if(l)window.open('https://wa.me/'+wa+'?text='+encodeURIComponent('Hello '+(l.name||'')+', this is The Resident Bookkeeper following up on your enquiry for '+(l.service||'bookkeeping support')+'.'),'_blank')}
-function sendFollow(id){const s=TRB.load(),f=s.followups.find(x=>x.id===id);if(!f)return;window.open('https://wa.me/'+wa+'?text='+encodeURIComponent(f.message),'_blank');f.status='Sent';f.sentAt=new Date().toISOString();TRB.save(s);render()}
-$('makeQuote').onclick=()=>{const s=TRB.load(),l=s.leads.find(x=>x.id===$('quoteLead').value);if(!l)return alert('Capture a lead first.');TRB.addQuote({leadId:l.id,package:$('package').value,scope:$('scope').value,amount:$('amount').value});TRB.updateLead(l.id,{stage:'Proposal'});$('scope').value='';$('amount').value='';render()};
-$('copyQuote').onclick=async()=>{const s=TRB.load(),q=s.quotes[0];if(!q)return alert('Create a quote first.');const l=s.leads.find(x=>x.id===q.leadId)||{};await navigator.clipboard.writeText('Hello '+(l.name||'')+', thank you for speaking with The Resident Bookkeeper.\n\nPackage: '+q.package+'\nScope: '+q.scope+'\nQuote: '+q.amount+'\n\nPlease let us know if you would like to proceed.');alert('Quote message copied.')};
-$('refresh').onclick=render;window.addEventListener('trb:sales-updated',render);render();
-</script></body></html>
+async function render(){
+ if(!(await loadState()))return;
+ $('stats').innerHTML=[['New leads',state.leads.filter(x=>x.stage==='New').length],['Total leads',state.leads.length],['Open quotes',state.quotes.filter(x=>!['Won','Cancelled'].includes(x.status)).length],['Pending follow-ups',state.followups.filter(x=>x.status==='Pending').length]].map(x=>'<div class="stat"><b>'+x[1]+'</b><span>'+x[0]+'</span></div>').join('');
+ $('leadTable').innerHTML=state.leads.length?'<div class="table"><table><tr><th>Name</th><th>Business</th><th>Service</th><th>Source</th><th>Stage</th><th>Created</th><th>Action</th></tr>'+state.leads.map(l=>'<tr><td>'+esc(l.name)+'</td><td>'+esc(l.business_type||'')+'</td><td>'+esc((l.notes||'').split('\n')[0].replace(/^Service:\s*/,''))+'</td><td>'+esc(l.source||'')+'</td><td><span class="pill '+(l.stage==='New'?'new':'')+'">'+esc(l.stage)+'</span></td><td>'+new Date(l.created_at).toLocaleString()+'</td><td><div class="actions"><button class="btn" onclick="qualify(\''+l.id+'\')">Qualify</button><button class="btn" onclick="whats(\''+l.id+'\')">WhatsApp</button></div></td></tr>').join('')+'</table></div>':'<div class="empty">No website leads yet.</div>';
+ $('quoteLead').innerHTML=state.leads.map(l=>'<option value="'+esc(l.id)+'">'+esc(l.name)+' — '+esc(l.business_type||'')+'</option>').join('')||'<option value="">No leads yet</option>';
+ $('quoteList').innerHTML=state.quotes.length?state.quotes.map(q=>'<div class="quote-card"><b>'+esc(q.package)+'</b> · '+esc(q.status)+' · '+esc(q.amount)+'<div class="small">'+esc(q.scope||'')+'</div></div>').join(''):'<div class="empty">No quotes created yet.</div>';
+ $('followupTable').innerHTML=state.followups.length?'<div class="table"><table><tr><th>Due</th><th>Lead</th><th>Follow-up</th><th>Channel</th><th>Status</th><th>Action</th></tr>'+state.followups.map(f=>{const l=state.leads.find(x=>x.id===f.lead_id)||{};return '<tr><td>'+new Date(f.due_at).toLocaleDateString()+'</td><td>'+esc(l.name||'Unknown')+'</td><td>'+esc(f.title)+'</td><td>'+esc(f.channel)+'</td><td><span class="pill">'+esc(f.status)+'</span></td><td><button class="btn" onclick="sendFollow(\''+f.id+'\')">Open WhatsApp</button></td></tr>'}).join('')+'</table></div>':'<div class="empty">Follow-ups will appear here as enquiries arrive.</div>';
+}
+async function qualify(id){
+ const {error}=await sb.from('leads').update({stage:'Qualified'}).eq('id',id);
+ if(error)alert(error.message); else await render();
+}
+function whats(id){
+ const l=state.leads.find(x=>x.id===id); if(!l)return;
+ window.open('https://wa.me/'+wa+'?text='+encodeURIComponent('Hello '+(l.name||'')+', this is The Resident Bookkeeper following up on your enquiry for '+((l.notes||'').split('\n')[0].replace(/^Service:\s*/,''))),'_blank');
+}
+async function sendFollow(id){
+ const f=state.followups.find(x=>x.id===id); if(!f)return;
+ window.open('https://wa.me/'+wa+'?text='+encodeURIComponent(f.message||''),'_blank');
+ const {error}=await sb.from('sales_followups').update({status:'Sent',sent_at:new Date().toISOString()}).eq('id',id);
+ if(error)alert(error.message); else await render();
+}
+$('makeQuote').onclick=async()=>{
+ const leadId=$('quoteLead').value;if(!leadId)return alert('Capture a lead first.');
+ const {data:q,error}=await sb.from('sales_quotes').insert({lead_id:leadId,package:$('package').value,scope:$('scope').value,amount:Number($('amount').value||0),status:'Draft'}).select().single();
+ if(error)return alert(error.message);
+ await sb.from('leads').update({stage:'Proposal'}).eq('id',leadId);
+ await sb.from('platform_events').insert({event_type:'quote.created',source:'sales-workspace',entity_type:'sales_quote',entity_id:q.id,payload:{lead_id:leadId,package:q.package,amount:q.amount}});
+ $('scope').value='';$('amount').value='';await render();
+};
+$('copyQuote').onclick=async()=>{
+ const q=state.quotes[0];if(!q)return alert('Create a quote first.');
+ const l=state.leads.find(x=>x.id===q.lead_id)||{};
+ await navigator.clipboard.writeText('Hello '+(l.name||'')+', thank you for speaking with The Resident Bookkeeper.\n\nPackage: '+q.package+'\nScope: '+(q.scope||'')+'\nQuote: '+q.amount+'\n\nPlease let us know if you would like to proceed.');
+ alert('Quote message copied.');
+};
+$('refresh').onclick=render;
+render().catch(e=>{console.error(e);alert('Sales workspace could not load: '+e.message)});
+</script></body>
