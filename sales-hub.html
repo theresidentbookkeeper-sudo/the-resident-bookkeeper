@@ -41,7 +41,7 @@ async function render(){
  $('stats').innerHTML=[['New leads',state.leads.filter(x=>x.stage==='New').length],['Total leads',state.leads.length],['Open quotes',state.quotes.filter(x=>!['Won','Cancelled'].includes(x.status)).length],['Pending follow-ups',state.followups.filter(x=>x.status==='Pending').length]].map(x=>'<div class="stat"><b>'+x[1]+'</b><span>'+x[0]+'</span></div>').join('');
  $('leadTable').innerHTML=state.leads.length?'<div class="table"><table><tr><th>Name</th><th>Business</th><th>Service</th><th>Source</th><th>Stage</th><th>Created</th><th>Action</th></tr>'+state.leads.map(l=>'<tr><td>'+esc(l.name)+'</td><td>'+esc(l.business_type||'')+'</td><td>'+esc((l.notes||'').split('\n')[0].replace(/^Service:\s*/,''))+'</td><td>'+esc(l.source||'')+'</td><td><span class="pill '+(l.stage==='New'?'new':'')+'">'+esc(l.stage)+'</span></td><td>'+new Date(l.created_at).toLocaleString()+'</td><td><div class="actions"><button class="btn" onclick="qualify(\''+l.id+'\')">Qualify</button><button class="btn" onclick="whats(\''+l.id+'\')">WhatsApp</button></div></td></tr>').join('')+'</table></div>':'<div class="empty">No website leads yet.</div>';
  $('quoteLead').innerHTML=state.leads.map(l=>'<option value="'+esc(l.id)+'">'+esc(l.name)+' — '+esc(l.business_type||'')+'</option>').join('')||'<option value="">No leads yet</option>';
- $('quoteList').innerHTML=state.quotes.length?state.quotes.map(q=>'<div class="quote-card"><b>'+esc(q.package)+'</b> · '+esc(q.status)+' · '+esc(q.amount)+'<div class="small">'+esc(q.scope||'')+'</div></div>').join(''):'<div class="empty">No quotes created yet.</div>';
+ $('quoteList').innerHTML=state.quotes.length?state.quotes.map(q=>'<div class="quote-card"><b>'+esc(q.package)+'</b> · '+esc(q.status)+' · '+esc(q.amount)+'<div class="small">'+esc(q.scope||'')+'</div><div class="actions" style="margin-top:10px">'+(q.status==='Draft'?'<button class="btn" onclick="markWon(\\''+q.id+'\\')">Mark Won & Create Invoice</button>':'')+'</div></div>').join(''):'<div class="empty">No quotes created yet.</div>';
  $('followupTable').innerHTML=state.followups.length?'<div class="table"><table><tr><th>Due</th><th>Lead</th><th>Follow-up</th><th>Channel</th><th>Status</th><th>Action</th></tr>'+state.followups.map(f=>{const l=state.leads.find(x=>x.id===f.lead_id)||{};return '<tr><td>'+new Date(f.due_at).toLocaleDateString()+'</td><td>'+esc(l.name||'Unknown')+'</td><td>'+esc(f.title)+'</td><td>'+esc(f.channel)+'</td><td><span class="pill">'+esc(f.status)+'</span></td><td><button class="btn" onclick="sendFollow(\''+f.id+'\')">Open WhatsApp</button></td></tr>'}).join('')+'</table></div>':'<div class="empty">Follow-ups will appear here as enquiries arrive.</div>';
 }
 async function qualify(id){
@@ -51,6 +51,42 @@ async function qualify(id){
 function whats(id){
  const l=state.leads.find(x=>x.id===id); if(!l)return;
  window.open('https://wa.me/'+wa+'?text='+encodeURIComponent('Hello '+(l.name||'')+', this is The Resident Bookkeeper following up on your enquiry for '+((l.notes||'').split('\n')[0].replace(/^Service:\s*/,''))),'_blank');
+}
+async function markWon(quoteId){
+ const q=state.quotes.find(x=>x.id===quoteId); if(!q)return;
+ const lead=state.leads.find(x=>x.id===q.lead_id); if(!lead)return alert('The lead for this quote could not be found.');
+ let clientId=lead.converted_client_id||null;
+ if(!clientId){
+   const {data:client,error:clientError}=await sb.from('clients').insert({
+     name:lead.business_type||lead.name,
+     contact_name:lead.name,
+     phone:lead.phone,
+     email:lead.email,
+     status:'Active'
+   }).select().single();
+   if(clientError)return alert('Could not create customer: '+clientError.message);
+   clientId=client.id;
+   const {error:leadError}=await sb.from('leads').update({stage:'Won',converted:true,converted_client_id:clientId}).eq('id',lead.id);
+   if(leadError)return alert(leadError.message);
+ }else{
+   await sb.from('leads').update({stage:'Won',converted:true}).eq('id',lead.id);
+ }
+ const invoiceNumber='INV-'+new Date().getFullYear()+'-'+Date.now().toString().slice(-6);
+ const {data:invoice,error:invoiceError}=await sb.from('invoices').insert({
+   client_id:clientId,
+   number:invoiceNumber,
+   description:q.scope||q.package,
+   line_items:[{description:q.package,amount:Number(q.amount||0)}],
+   subtotal:Number(q.amount||0),
+   amount:Number(q.amount||0),
+   status:'Draft'
+ }).select().single();
+ if(invoiceError)return alert('Customer was created, but invoice creation failed: '+invoiceError.message);
+ const {error:quoteError}=await sb.from('sales_quotes').update({status:'Won',updated_at:new Date().toISOString()}).eq('id',quoteId);
+ if(quoteError)return alert(quoteError.message);
+ await sb.from('platform_events').insert({event_type:'sale.won',source:'sales-workspace',entity_type:'invoice',entity_id:invoice.id,payload:{quote_id:quoteId,lead_id:lead.id,client_id:clientId,invoice_number:invoiceNumber,amount:Number(q.amount||0)}});
+ alert('Sale marked Won and a draft invoice was created in Finance.');
+ await render();
 }
 async function sendFollow(id){
  const f=state.followups.find(x=>x.id===id); if(!f)return;
