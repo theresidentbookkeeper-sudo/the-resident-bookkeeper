@@ -13,7 +13,7 @@
 <section id="followups"><div class="panel"><h2>Follow-up queue</h2><p class="small">New website leads receive a 0/2/5/10-day WhatsApp follow-up sequence.</p><div id="followupTable"></div></div></section>
 <section><div class="panel"><h2>Connection to your existing platform</h2><div class="grid"><div class="stat"><b>Leads</b><span>Capture, source, service and stage.</span></div><div class="stat"><b>Customers</b><span>Qualified leads are ready for customer conversion.</span></div><div class="stat"><b>Sales</b><span>Package, scope, quote and deal status.</span></div><div class="stat"><b>Finance + Nani</b><span>Won-deal context is kept in the shared sales state for the next integration layer.</span></div></div></div></section>
 </main>
-<script src="/sales-bridge.js"></script><script>
+<script>(function(){const ok=Object.keys(localStorage).some(k=>k.startsWith("sb-")&&k.includes("auth-token"));if(!ok){document.body.innerHTML="<main style=\"font:16px system-ui;padding:40px\"><h2>Internal sales workspace</h2><p>Please sign in to the private platform first.</p><a href=\"/\">Return to sign in</a></main>";throw new Error("Authentication required");}})();</script><script src="/sales-bridge.js"></script><script>
 const $=id=>document.getElementById(id),wa='2348026000078';
 function esc(s){return String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 function render(){
