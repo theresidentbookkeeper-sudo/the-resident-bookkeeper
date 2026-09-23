@@ -78,13 +78,15 @@ footer{background:#11100f;color:#e8e1da;padding:40px 0}.footer-grid{display:flex
 </div></div></section>
 </main>
 <footer><div class="wrap footer-grid"><div><b>The Resident Bookkeeper</b><p>Practical bookkeeping support for businesses that want cleaner records and clearer numbers.</p></div><div class="footer-links"><a href="#services">Services</a><a href="#packages">Packages</a><a href="#contact">Contact</a></div></div></footer>
-<script>
-document.getElementById('leadForm').addEventListener('submit',function(e){
+<script src="/sales-bridge.js"></script><script>
+document.querySelectorAll(".package a").forEach(a=>a.addEventListener("click",()=>{const card=a.closest(".package");if(card){const sel=document.getElementById("service");if(sel)sel.value=card.querySelector("h3").textContent;}}));
+document.getElementById("leadForm").addEventListener("submit",function(e){
  e.preventDefault();
- const n=document.getElementById('name').value.trim(),b=document.getElementById('business').value.trim(),s=document.getElementById('service').value,m=document.getElementById('message').value.trim();
- const text='Hello The Resident Bookkeeper, I would like to discuss bookkeeping support.%0A%0AName: '+encodeURIComponent(n)+'%0ABusiness: '+encodeURIComponent(b)+'%0AService: '+encodeURIComponent(s)+'%0ADetails: '+encodeURIComponent(m||'Not provided');
- window.open('https://wa.me/2348026000078?text='+text,'_blank');
+ const name=document.getElementById("name").value.trim(),business=document.getElementById("business").value.trim(),service=document.getElementById("service").value,message=document.getElementById("message").value.trim();
+ const lead=window.TRB.addLead({name,business,service,message,source:"Public Website",channel:"Website form"});
+ if(window.TRB.load().followups.filter(x=>x.leadId===lead.id).length===0)window.TRB.seedFollowups(lead);
+ const text="Hello The Resident Bookkeeper, I would like to discuss bookkeeping support.\n\nName: "+name+"\nBusiness: "+business+"\nService: "+service+"\nDetails: "+(message||"Not provided");
+ window.open("https://wa.me/2348026000078?text="+encodeURIComponent(text),"_blank");
 });
-</script>
-</body>
+</script></body>
 </html>
