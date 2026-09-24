@@ -1,0 +1,22 @@
+User-agent: *
+Allow: /
+Disallow: /business-hub
+Disallow: /platform
+Disallow: /hub
+Disallow: /sales-hub
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /business-hub
+Disallow: /platform
+Disallow: /hub
+Disallow: /sales-hub
+
+User-agent: GPTBot
+Allow: /
+Disallow: /business-hub
+Disallow: /platform
+Disallow: /hub
+Disallow: /sales-hub
+
+Sitemap: https://the-resident-bookkeeper.netlify.app/sitemap.xml
