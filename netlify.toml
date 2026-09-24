@@ -27,3 +27,28 @@
   from = "/hub"
   to = "/business-hub.html"
   status = 200
+
+[[redirects]]
+  from = "/bookkeeping-nigeria"
+  to = "/bookkeeping-nigeria.html"
+  status = 200
+
+[[redirects]]
+  from = "/bookkeeping-us"
+  to = "/bookkeeping-us.html"
+  status = 200
+
+[[redirects]]
+  from = "/bookkeeping-uk"
+  to = "/bookkeeping-uk.html"
+  status = 200
+
+[[redirects]]
+  from = "/bookkeeping-australia"
+  to = "/bookkeeping-australia.html"
+  status = 200
+
+[[redirects]]
+  from = "/bookkeeping-canada"
+  to = "/bookkeeping-canada.html"
+  status = 200
