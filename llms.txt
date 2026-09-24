@@ -1,0 +1,40 @@
+# The Resident Bookkeeper
+
+The Resident Bookkeeper is a bookkeeping company based in Nigeria and serving businesses remotely across Nigeria, the United States, the United Kingdom, Australia and Canada.
+
+Tagline: Accurate Records • Smarter Decisions • Stronger Business.
+
+## Core services
+- Full-cycle bookkeeping
+- Bank reconciliations
+- Accounts payable and accounts receivable support
+- Catch-up bookkeeping
+- Cleanup bookkeeping
+- Financial reporting
+- Ongoing bookkeeping support
+
+## Public website
+https://the-resident-bookkeeper.netlify.app/
+
+## Regional service pages
+- Nigeria: https://the-resident-bookkeeper.netlify.app/bookkeeping-nigeria
+- United States: https://the-resident-bookkeeper.netlify.app/bookkeeping-us
+- United Kingdom: https://the-resident-bookkeeper.netlify.app/bookkeeping-uk
+- Australia: https://the-resident-bookkeeper.netlify.app/bookkeeping-australia
+- Canada: https://the-resident-bookkeeper.netlify.app/bookkeeping-canada
+
+## Contact
+Email: theresidentbookkeeper@gmail.com
+WhatsApp: +234 802 600 0078
+Facebook: https://www.facebook.com/residentbookkeeper
+Instagram: https://www.instagram.com/theresidentbookkeeper/
+
+## Pricing
+Starter: $250/month
+Growth: $450/month
+Business: $750/month
+Catch-up: from $300
+Cleanup: from $250
+Custom/Complex: from $1,000/month
+
+Final pricing depends on transaction volume, number of accounts, software, reporting requirements and the condition of the books.
