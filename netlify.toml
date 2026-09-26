@@ -4,36 +4,11 @@
   status = 200
   force = true
 
-# TRB deployment trigger: Netlify production refresh after plan upgrade
-[[redirects]]
-  from = "/website"
-  to = "/website.html"
-  status = 200
-
-[[redirects]]
-  from = "/public"
-  to = "/website.html"
-  status = 200
-
-[[redirects]]
-  from = "/sales-hub"
-  to = "/platform?view=sales"
-  status = 302
-
-[[redirects]]
-  from = "/business-hub"
-  to = "/business-hub.html"
-  status = 200
-
 [[redirects]]
   from = "/platform"
   to = "/index.html"
   status = 200
-
-[[redirects]]
-  from = "/hub"
-  to = "/business-hub.html"
-  status = 200
+  force = true
 
 [[redirects]]
   from = "/bookkeeping-nigeria"
@@ -59,13 +34,3 @@
   from = "/bookkeeping-canada"
   to = "/bookkeeping-canada.html"
   status = 200
-
-[[redirects]]
-  from = "/books-lite"
-  to = "/books-lite.html"
-  status = 200
-
-[[redirects]]
-  from = "/client-login"
-  to = "/platform"
-  status = 302
