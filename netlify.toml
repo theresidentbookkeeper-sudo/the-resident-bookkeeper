@@ -52,3 +52,8 @@
   from = "/bookkeeping-canada"
   to = "/bookkeeping-canada.html"
   status = 200
+
+[[redirects]]
+  from = "/books-lite"
+  to = "/books-lite.html"
+  status = 200
