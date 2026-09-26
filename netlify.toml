@@ -1,3 +1,4 @@
+# TRB deployment trigger: Netlify production refresh after plan upgrade
 [[redirects]]
   from = "/website"
   to = "/website.html"
