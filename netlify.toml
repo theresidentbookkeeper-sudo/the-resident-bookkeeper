@@ -17,7 +17,7 @@
 
 [[redirects]]
   from = "/sales-hub"
-  to = "/platform"
+  to = "/platform?view=sales"
   status = 302
 
 [[redirects]]
