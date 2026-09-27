@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Get Started with TRB Books Lite | The Resident Bookkeeper</title>
+<link rel="icon" href="/assets/trb-logo.jpg">
+<style>
+:root{--ink:#1a1512;--cream:#f7f4ef;--paper:#fffdf9;--muted:#6d665f;--line:#e8e0d7;--gold:#b99552;--red:#8f2f2f}
+*{box-sizing:border-box}body{margin:0;background:var(--cream);color:var(--ink);font:15px Inter,system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.6}.wrap{width:min(980px,92%);margin:auto}header{border-bottom:1px solid var(--line);background:rgba(247,244,239,.96)}.nav{min-height:74px;display:flex;align-items:center;justify-content:space-between}.brand{display:flex;align-items:center;gap:10px;font-weight:900}.brand img{width:48px;height:48px;border-radius:50%;object-fit:cover}.brand small{display:block;color:var(--red);font-size:9px;letter-spacing:.18em}.brand b{font-size:14px}.back{font-size:13px;font-weight:800}.hero{padding:70px 0 40px}.eyebrow{color:var(--red);font-size:11px;font-weight:900;letter-spacing:.15em;text-transform:uppercase}.hero h1{font:700 clamp(38px,6vw,62px)/1.05 Georgia,serif;margin:12px 0}.hero p{color:var(--muted);font-size:18px;max-width:720px}.grid{display:grid;grid-template-columns:1fr .85fr;gap:22px;align-items:start}.card{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:25px;box-shadow:0 10px 30px rgba(26,21,18,.05)}.price{font:700 30px Georgia,serif;color:var(--ink)}.gold{color:var(--gold)}ul{padding-left:20px;color:var(--muted)}li{margin:8px 0}form{display:grid;gap:12px}label{font-size:12px;font-weight:800}input{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:10px;background:#fff;font:inherit}.btn{display:inline-flex;justify-content:center;align-items:center;border:0;border-radius:10px;padding:14px 18px;background:var(--red);color:#fff;font-weight:900;cursor:pointer}.btn:disabled{opacity:.55}.note{font-size:12px;color:var(--muted)}.success{display:none;background:#eef4ef;border:1px solid #cbd9ce;color:#304936;border-radius:14px;padding:15px}.success.show{display:block}@media(max-width:760px){.grid{grid-template-columns:1fr}.hero{padding-top:45px}}
+</style>
+</head>
+<body>
+<header><div class="wrap nav"><a class="brand" href="/"><img src="/assets/trb-logo.jpg" alt="The Resident Bookkeeper logo"><div><small>THE RESIDENT</small><b>BOOKKEEPER</b></div></a><a class="back" href="/bookkeeping-nigeria#local-pricing">← Back to Nigeria pricing</a></div></header>
+<main>
+<section class="hero"><div class="wrap"><span class="eyebrow">TRB Books Lite · Nigeria</span><h1>A simpler way to keep your books moving.</h1><p>Books Lite is designed for small Nigerian businesses with up to 2 business bank accounts and up to 100 transactions per month. You upload your statements and use your dedicated workspace to keep your records moving through the bookkeeping workflow.</p></div></section>
+<section><div class="wrap grid">
+<div class="card"><span class="eyebrow">Why this is a good fit</span><h2 style="font:700 28px Georgia,serif">Simple scope. Clear process. Your own workspace.</h2><ul><li>Up to <b>2 business bank accounts</b>.</li><li>Up to <b>100 transactions per month</b>.</li><li>Dedicated Books Lite dashboard for your business.</li><li>Monthly bank statement upload workflow.</li><li>Transaction categorisation and review workflow.</li><li>Bank reconciliation workflow.</li><li>Monthly reports when processing is complete.</li><li>Secure access through The Resident Bookkeeper Team / Client login.</li></ul><p class="note">Books Lite does not include tax preparation or filing, tax/legal advice, audit or attestation, investment advice, or moving client funds.</p></div>
+<div class="card"><span class="eyebrow">Get started</span><div class="price">₦100,000 <span class="gold">/ year</span></div><p class="note">Defined Books Lite scope. Final subscription confirmation is handled through our normal sales and invoice process.</p><form id="booksliteForm"><div><label for="name">Your name</label><input id="name" required placeholder="Full name"></div><div><label for="business">Business name</label><input id="business" required placeholder="Business name"></div><div><label for="email">Email</label><input id="email" type="email" required placeholder="you@example.com"></div><div><label for="phone">WhatsApp / phone</label><input id="phone" required placeholder="+234..."></div><button id="submitBtn" class="btn" type="submit">Get Started →</button></form><div id="success" class="success"><b>Your Books Lite request is with The Resident Bookkeeper.</b><br>Maya will follow up to explain why Books Lite fits your business, confirm when you want to make payment, and prepare the invoice when you are ready.</div><p class="note" style="margin-top:12px">No payment is taken on this page. Your request enters our sales pipeline first.</p></div>
+</div></section>
+</main>
+<script>
+const SUPABASE_URL='https://njhohxhtqkktktngjflb.supabase.co';
+const SUPABASE_KEY='sb_publishable_KqlXsF07Jgj-dS8P382reQ_-ShRBI7O';
+document.getElementById('booksliteForm').addEventListener('submit',async e=>{
+ e.preventDefault();const btn=document.getElementById('submitBtn');btn.disabled=true;btn.textContent='Sending…';
+ const name=document.getElementById('name').value.trim(),business=document.getElementById('business').value.trim(),email=document.getElementById('email').value.trim(),phone=document.getElementById('phone').value.trim();
+ const message='Books Lite request. Defined scope: up to 2 business bank accounts and up to 100 transactions/month. Prospect clicked Get Started and wants Maya to explain the fit, confirm payment timing and continue to invoice.';
+ try{
+  const res=await fetch(SUPABASE_URL+'/rest/v1/public_lead_intake',{method:'POST',headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({name,business,email,phone,service:'Books Lite — Get Started',message,source:'Nigeria Pricing — Books Lite'})});
+  if(!res.ok)throw new Error('Unable to submit request');
+  document.getElementById('success').classList.add('show');document.getElementById('booksliteForm').style.display='none';
+  const wa='https://wa.me/2348026000078?text='+encodeURIComponent('Hello The Resident Bookkeeper, I just requested to get started with Books Lite for '+business+'. I am ready to discuss payment timing and next steps.');
+  setTimeout(()=>window.open(wa,'_blank'),500);
+ }catch(err){alert('We could not submit your request right now. Please use WhatsApp instead.');btn.disabled=false;btn.textContent='Get Started →'}
+});
+</script>
+</body>
+</html>
