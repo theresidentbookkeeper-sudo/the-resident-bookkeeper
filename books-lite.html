@@ -99,4 +99,81 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 function demoUpload(input){document.getElementById('fileName').textContent=input.files?.[0]?.name||'No file selected';toast('Statement selected for the demo workflow.')}
 function startDemoProcessing(){toast('Demo: Nora would now extract, categorise and reconcile the statement.')}
 </script>
-</body></html>
+<script>
+(async function(){
+  const SUPABASE_URL='https://njhohxhtqkktktngjflb.supabase.co';
+  const SUPABASE_KEY='sb_publishable_KqlXsF07Jgj-dS8P382reQ_-ShRBI7O';
+  const client=sb||window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+  const {data:{session}}=await client.auth.getSession();
+  if(!session){window.location.replace('/platform');return;}
+  const user=session.user;
+  const {data:business,error:businessError}=await client.from('books_lite_businesses').select('*').eq('owner_id',user.id).eq('subscription_status','active').maybeSingle();
+  if(businessError||!business){await client.auth.signOut();window.location.replace('/platform');return;}
+
+  document.querySelector('.pill.demo').textContent='ACTIVE PLAN';
+  document.querySelector('.pill.demo').classList.remove('demo');
+  document.querySelector('.crumb b').textContent=business.business_name+' / Books Lite';
+  document.querySelector('.avatar').textContent=(business.business_name||'BL').split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase();
+  document.querySelector('#dashboard .hero h1').textContent='Welcome to your Books Lite workspace.';
+  document.querySelector('#dashboard .hero .sub').textContent='Upload your bank statement each month and keep your bookkeeping simple, visible and organized.';
+  document.querySelector('#settings input').value=business.business_name||'';
+  document.querySelectorAll('#settings .limit b')[0].textContent='0 / '+(business.max_bank_accounts||2);
+  document.querySelectorAll('#settings .limit b')[1].textContent='0 / '+(business.max_monthly_transactions||100);
+
+  const {data:accounts=[]}=await client.from('books_lite_bank_accounts').select('*').eq('business_id',business.id).order('created_at');
+  const {data:uploads=[]}=await client.from('books_lite_statement_uploads').select('*').eq('business_id',business.id).order('uploaded_at',{ascending:false});
+  const {data:tx=[]}=await client.from('books_lite_transactions').select('*').eq('business_id',business.id).order('transaction_date',{ascending:false}).limit(100);
+  const {data:reports=[]}=await client.from('books_lite_reports').select('*').eq('business_id',business.id).order('created_at',{ascending:false});
+
+  const totalTx=tx.length, accountCount=accounts.length;
+  document.querySelectorAll('#dashboard .grid4 .metric b')[0].textContent=String(totalTx);
+  document.querySelectorAll('#dashboard .grid4 .metric b')[1].textContent=accountCount+' / '+(business.max_bank_accounts||2);
+  document.querySelectorAll('#dashboard .grid4 .metric b')[2].textContent='—';
+  document.querySelectorAll('#dashboard .grid4 .metric b')[3].textContent=reports.some(x=>x.status==='ready')?'Ready':'Not started';
+  document.querySelectorAll('#dashboard .grid4 .metric .delta')[0].textContent=totalTx+' transactions loaded for this workspace';
+  document.querySelectorAll('#dashboard .grid4 .metric .delta')[1].textContent=accountCount+' bank account'+(accountCount===1?'':'s')+' configured';
+  document.querySelectorAll('#dashboard .grid4 .metric .delta')[2].textContent='Profit appears after transactions are processed';
+  document.querySelectorAll('#dashboard .grid4 .metric .delta')[3].textContent=reports.length+' report record'+(reports.length===1?'':'s');
+
+  const activity=document.querySelector('#dashboard .activity');
+  activity.innerHTML=uploads.length?uploads.slice(0,4).map((u,i)=>'<div class="activity-row"><div class="icon">'+String(i+1).padStart(2,'0')+'</div><div><b>'+escapeHtml(u.file_name)+'</b><div class="tiny muted">'+(u.transaction_count||0)+' transactions · '+u.status+'</div></div><span class="status '+(u.status==='reconciled'?'ok':'warn')+'">'+u.status+'</span></div>').join(''):'<div class="notice"><b>No statement uploaded yet.</b><br><span class="tiny">Upload your first bank statement to begin your Books Lite bookkeeping workflow.</span></div>';
+  const snap=document.querySelector('#dashboard .grid2 .card:nth-child(2)');
+  if(snap){snap.querySelector('p').textContent='Current workspace';snap.querySelector('.section').innerHTML='<div class="limit"><span>Bank accounts</span><b>'+accountCount+'</b></div><div class="limit"><span>Statements uploaded</span><b>'+uploads.length+'</b></div><div class="limit"><span>Transactions loaded</span><b>'+totalTx+'</b></div><div class="limit"><span>Monthly limit</span><b>'+(business.max_monthly_transactions||100)+'</b></div>';}
+
+  const tbody=document.querySelector('#transactions tbody');
+  if(tbody) tbody.innerHTML=tx.length?tx.slice(0,30).map(x=>'<tr><td>'+escapeHtml(x.transaction_date||'—')+'</td><td>'+escapeHtml(x.description||'—')+'</td><td>'+escapeHtml(x.category_code||x.suggested_category_code||'Pending review')+'</td><td><span class="status '+(Number(x.category_confidence||0)>=90?'ok':'warn')+'">'+(x.category_confidence==null?'—':Number(x.category_confidence).toFixed(0)+'%')+'</span></td><td class="amount '+(Number(x.amount||0)>=0?'income':'expense')+'">'+formatNGN(x.amount)+'</td></tr>').join(''):'<tr><td colspan="5" style="text-align:center;color:#6f675e;padding:28px">No transactions have been processed yet.</td></tr>';
+
+  const reportWrap=document.querySelector('#reports .grid2 .card');
+  if(reportWrap){reportWrap.innerHTML=reports.length?reports.map(r=>'<div class="report"><div class="report-left"><div class="report-icon">REP</div><div><h3>'+escapeHtml(r.report_type||'Report')+'</h3><span class="tiny muted">'+escapeHtml(r.period_start||'')+' to '+escapeHtml(r.period_end||'')+'</span></div></div><span class="status '+(r.status==='ready'?'ok':'warn')+'">'+r.status+'</span></div>').join(''):'<div class="notice"><b>No reports yet.</b><br><span class="tiny">Reports will appear here after bookkeeping data has been processed and a report pack is generated.</span></div>';}
+
+  const uploadBtn=document.querySelector('#upload .btn.red');
+  if(uploadBtn){uploadBtn.textContent='Upload statement';uploadBtn.onclick=async function(){
+    const input=document.getElementById('file'), file=input?.files?.[0];
+    if(!file){toast('Choose a PDF, CSV or Excel statement first.');return;}
+    if(file.size>6*1024*1024){toast('Please keep the statement below 6 MB.');return;}
+    let bank=accounts[0];
+    if(!bank){
+      const {data:newBank,error}=await client.from('books_lite_bank_accounts').insert({business_id:business.id,owner_id:user.id,bank_name:'Primary bank account',account_name:business.business_name,currency_code:'NGN',active:true}).select().single();
+      if(error){toast('Could not prepare the first bank account.');return;}
+      bank=newBank;
+    }
+    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const path=user.id+'/books-lite/'+business.id+'/'+Date.now()+'_'+safe;
+    const {error:uploadError}=await client.storage.from('client-files').upload(path,file,{contentType:file.type||'application/octet-stream',upsert:false});
+    if(uploadError){toast('Upload failed: '+uploadError.message);return;}
+    const today=new Date().toISOString().slice(0,10);
+    const {error:rowError}=await client.from('books_lite_statement_uploads').insert({business_id:business.id,bank_account_id:bank.id,owner_id:user.id,period_start:today,period_end:today,file_name:file.name,storage_path:path,file_type:file.type||'application/octet-stream',status:'uploaded',transaction_count:0});
+    if(rowError){toast('File uploaded, but the statement record could not be saved.');return;}
+    toast('Statement uploaded. It is now ready for bookkeeping processing.');
+    setTimeout(()=>location.reload(),900);
+  }};
+
+  const demoNote=document.querySelector('#upload .section.notice');
+  if(demoNote) demoNote.innerHTML='<b>Next step:</b> your statement has been uploaded securely to your private Books Lite workspace. Processing and reconciliation will update this dashboard when the bookkeeping workflow is run.';
+  const footer=document.querySelector('.footer-note');
+  if(footer) footer.textContent='TRB Books Lite is your dedicated bookkeeping workspace. Your data is isolated to your account and the plan is limited to 2 bank accounts and 100 transactions per month.';
+
+  function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function formatNGN(v){return '₦'+Number(v||0).toLocaleString('en-NG',{maximumFractionDigits:2})}
+})();
+</script></body></html>
