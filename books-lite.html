@@ -107,7 +107,7 @@ function startDemoProcessing(){toast('Demo: Nora would now extract, categorise a
   const {data:{session}}=await client.auth.getSession();
   if(!session){window.location.replace('/platform');return;}
   const user=session.user;
-  const {data:business,error:businessError}=await client.from('books_lite_businesses').select('*').eq('owner_id',user.id).eq('subscription_status','active').maybeSingle();
+  const {data:business,error:businessError}=await client.from('books_lite_businesses').select('*').eq('owner_id',user.id).eq('subscription_status','active').maybeSingle();\n  const {data:trbClient}=await client.from('clients').select('id,name').eq('portal_user_id',user.id).maybeSingle();\n  if(!trbClient){await client.auth.signOut();window.location.replace('/platform');return;}
   if(businessError||!business){await client.auth.signOut();window.location.replace('/platform');return;}
 
   document.querySelector('.pill.demo').textContent='ACTIVE PLAN';
@@ -158,7 +158,7 @@ function startDemoProcessing(){toast('Demo: Nora would now extract, categorise a
       bank=newBank;
     }
     const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-    const path=user.id+'/books-lite/'+business.id+'/'+Date.now()+'_'+safe;
+    const path=trbClient.id+'/books-lite/'+business.id+'/'+Date.now()+'_'+safe;
     const {error:uploadError}=await client.storage.from('client-files').upload(path,file,{contentType:file.type||'application/octet-stream',upsert:false});
     if(uploadError){toast('Upload failed: '+uploadError.message);return;}
     const today=new Date().toISOString().slice(0,10);
