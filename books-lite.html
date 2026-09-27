@@ -161,8 +161,8 @@ function startDemoProcessing(){toast('Demo: Nora would now extract, categorise a
     const path=trbClient.id+'/books-lite/'+business.id+'/'+Date.now()+'_'+safe;
     const {error:uploadError}=await client.storage.from('client-files').upload(path,file,{contentType:file.type||'application/octet-stream',upsert:false});
     if(uploadError){toast('Upload failed: '+uploadError.message);return;}
-    const today=new Date().toISOString().slice(0,10);
-    const {error:rowError}=await client.from('books_lite_statement_uploads').insert({business_id:business.id,bank_account_id:bank.id,owner_id:user.id,period_start:today,period_end:today,file_name:file.name,storage_path:path,file_type:file.type||'application/octet-stream',status:'uploaded',transaction_count:0});
+    const nowDate=new Date(), periodStart=new Date(nowDate.getFullYear(),nowDate.getMonth(),1).toISOString().slice(0,10), periodEnd=new Date(nowDate.getFullYear(),nowDate.getMonth()+1,0).toISOString().slice(0,10);
+    const {error:rowError}=await client.from('books_lite_statement_uploads').insert({business_id:business.id,bank_account_id:bank.id,owner_id:user.id,period_start:periodStart,period_end:periodEnd,file_name:file.name,storage_path:path,file_type:file.type||'application/octet-stream',status:'uploaded',transaction_count:0});
     if(rowError){toast('File uploaded, but the statement record could not be saved.');return;}
     toast('Statement uploaded. It is now ready for bookkeeping processing.');
     setTimeout(()=>location.reload(),900);
