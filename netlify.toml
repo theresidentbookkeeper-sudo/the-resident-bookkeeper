@@ -42,5 +42,15 @@
 
 [[redirects]]
   from = "/bookslite-start"
-  to = "/bookslite-start.html"
+  to = "/books-lite-start.html"
+  status = 200
+
+[[redirects]]
+  from = "/client-dashboard"
+  to = "/client-dashboard.html"
+  status = 200
+
+[[redirects]]
+  from = "/growth-command-center"
+  to = "/growth-command-center.html"
   status = 200
