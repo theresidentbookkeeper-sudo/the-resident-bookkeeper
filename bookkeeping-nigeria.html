@@ -42,7 +42,7 @@ document.getElementById("booksliteForm").addEventListener("submit",async functio
   const res=await fetch("https://njhohxhtqkktktngjflb.supabase.co/rest/v1/public_lead_intake",{method:"POST",headers:{"apikey":"sb_publishable_KqlXsF07Jgj-dS8P382reQ_-ShRBI7O","Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({name,business,email,phone,service:"Books Lite",message,source:"Nigeria Pricing — Books Lite"})});
   if(!res.ok)throw new Error("Lead capture failed");
   closeBooksLite();
-  window.open("https://wa.me/2348026000078?text="+encodeURIComponent("Hello The Resident Bookkeeper, I just selected Books Lite and would like to get started.\n\nName: "+name+"\nBusiness: "+business+"\nEmail: "+email+"\nPhone: "+phone+"\nBusiness type: "+businessType+"\nPreferred start: "+start)," _blank");
+  window.open("https://wa.me/2348026000078?text="+encodeURIComponent("Hello The Resident Bookkeeper, I just selected Books Lite and would like to get started.\n\nName: "+name+"\nBusiness: "+business+"\nEmail: "+email+"\nPhone: "+phone+"\nBusiness type: "+businessType+"\nPreferred start: "+start),"_blank");
  }catch(err){alert("We couldn't save your request just now. Please try again or contact us on WhatsApp.");console.error(err)}
 });
 </script></body></html>
