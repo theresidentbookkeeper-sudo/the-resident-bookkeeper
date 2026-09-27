@@ -34,3 +34,13 @@
   from = "/bookkeeping-canada"
   to = "/bookkeeping-canada.html"
   status = 200
+
+[[redirects]]
+  from = "/bookslite"
+  to = "/books-lite.html"
+  status = 200
+
+[[redirects]]
+  from = "/bookslite-start"
+  to = "/bookslite-start.html"
+  status = 200
