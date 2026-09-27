@@ -26,7 +26,7 @@
   <small>Built by The Resident Bookkeeper. Designed for small Nigerian businesses that want simple, understandable books.</small>
 </aside>
 <main class="main">
-<header class="top"><div class="crumb">Business Platform / Books Lite / <b>September 2026</b></div><div class="top-actions"><span class="pill demo">DEMO PREVIEW</span><span class="pill">100 tx / month</span><div class="avatar">NB</div></div></header>
+<header class="top"><div class="crumb" id="crumb">My Books Lite workspace</div><div class="top-actions"><span class="pill demo" id="liveBadge">LIVE BOOKSLITE</span><span class="pill">100 tx / month</span><button class="avatar" id="avatar" title="Sign out">NB</button></div></header>
 <div class="content">
 
 <section id="dashboard" class="view active">
@@ -86,17 +86,106 @@
 <div class="card setting"><div class="field"><label>Business name</label><input value="Demo Business Nigeria Ltd" readonly></div><div class="field"><label>Business type</label><select><option>Professional Services</option><option>E-commerce / Online Store</option><option>Construction / Contracting</option><option>Retail</option></select></div><div class="field"><label>Primary bank account</label><input value="GTBank — Business Current" readonly></div><div class="field"><label>Second bank account</label><input value="Access Bank — Business Savings" readonly></div></div>
 <div class="section grid2"><div class="card"><h2>Books Lite limits</h2><div class="limit"><span>Bank accounts</span><b>2 / 2</b></div><div class="bar"><i style="width:100%"></i></div><div class="limit"><span>Monthly transactions</span><b>87 / 100</b></div><div class="bar"><i style="width:87%"></i></div><p class="tiny muted">If your business grows beyond these limits, TRB can help you move to a larger plan or managed bookkeeping.</p></div><div class="card"><h2>When your business grows</h2><p class="muted">Books Lite is the starting point, not the ceiling.</p><button class="btn" onclick="toast('Upgrade pathway connected to The Resident Bookkeeper.')">Talk to TRB</button></div></div>
 </section>
-<p class="footer-note">TRB Books Lite is a product concept/demo inside The Resident Bookkeeper Business Platform. Demo figures are illustrative and must not be treated as actual accounting records.</p>
+<p class="footer-note">This is your private TRB Books Lite workspace. Your records belong to your business account and are protected by your secure login.</p>
 </div></main></div>
 <div id="toast" class="toast"></div>
 <script>
 const SUPABASE_URL='https://njhohxhtqkktktngjflb.supabase.co';
 const SUPABASE_KEY='sb_publishable_KqlXsF07Jgj-dS8P382reQ_-ShRBI7O';
-const sb=window.supabase?.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+let session=null, user=null, client=null, business=null, accounts=[], statements=[], transactions=[], reports=[], reconciliations=[];
+
 function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.side button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));window.scrollTo({top:0,behavior:'smooth'})}
 document.querySelectorAll('.side button').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600)}
-function demoUpload(input){document.getElementById('fileName').textContent=input.files?.[0]?.name||'No file selected';toast('Statement selected for the demo workflow.')}
-function startDemoProcessing(){toast('Demo: Nora would now extract, categorise and reconcile the statement.')}
+function money(n){return '₦'+Number(n||0).toLocaleString('en-NG',{maximumFractionDigits:2})}
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function initials(name){return String(name||'TRB').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase()||'TRB'}
+function demoUpload(input){document.getElementById('fileName').textContent=input.files?.[0]?.name||'No file selected';toast('Statement selected. It will be saved to your secure Books Lite workspace when submitted.')}
+async function startDemoProcessing(){
+  const input=document.getElementById('file'), file=input?.files?.[0];
+  if(!file){toast('Choose a bank statement first.');return}
+  if(!business){toast('Your Books Lite workspace is not ready yet.');return}
+  try{
+    let account=accounts[0];
+    if(!account){
+      const {data,error}=await sb.from('books_lite_bank_accounts').insert({business_id:business.id,owner_id:user.id,bank_name:'Primary Business Bank',account_name:business.business_name,currency_code:'NGN'}).select().single();
+      if(error) throw error; account=data; accounts=[account];
+    }
+    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const path=client.id+'/bookslite/'+Date.now()+'_'+safe;
+    const up=await sb.storage.from('client-files').upload(path,file,{upsert:false});
+    if(up.error) throw up.error;
+    const today=new Date(), startOfMonth=new Date(today.getFullYear(),today.getMonth(),1), endOfMonth=new Date(today.getFullYear(),today.getMonth()+1,0);
+    const {data,error}=await sb.from('books_lite_statement_uploads').insert({
+      business_id:business.id,bank_account_id:account.id,owner_id:user.id,
+      period_start:startOfMonth.toISOString().slice(0,10),period_end:endOfMonth.toISOString().slice(0,10),
+      file_name:file.name,storage_path:path,file_type:file.type||'application/octet-stream',status:'uploaded'
+    }).select().single();
+    if(error) throw error;
+    statements=[data,...statements];
+    toast('Statement uploaded. Nora processing is queued for this workspace.');
+    document.getElementById('fileName').textContent=file.name+' · Uploaded';
+    await refresh();
+  }catch(err){toast(err?.message||'Upload could not be completed.')}
+}
+async function refresh(){
+  if(!business)return;
+  const [a,st,tr,rep,rec]=await Promise.all([
+    sb.from('books_lite_bank_accounts').select('*').eq('business_id',business.id).order('created_at'),
+    sb.from('books_lite_statement_uploads').select('*').eq('business_id',business.id).order('uploaded_at',{ascending:false}).limit(20),
+    sb.from('books_lite_transactions').select('*').eq('business_id',business.id).order('transaction_date',{ascending:false}).limit(500),
+    sb.from('books_lite_reports').select('*').eq('business_id',business.id).order('created_at',{ascending:false}).limit(20),
+    sb.from('books_lite_reconciliations').select('*').eq('business_id',business.id).order('created_at',{ascending:false}).limit(20)
+  ]);
+  accounts=a.data||[]; statements=st.data||[]; transactions=tr.data||[]; reports=rep.data||[]; reconciliations=rec.data||[];
+  render();
+}
+function render(){
+  const count=transactions.length, income=transactions.reduce((s,t)=>s+Number(t.credit||0),0), expense=transactions.reduce((s,t)=>s+Number(t.debit||0),0), net=income-expense;
+  const reconciled=reconciliations.filter(r=>['reconciled','reconciled_review'].includes(r.status)).length;
+  document.querySelector('.top-actions .pill:not(.demo)').textContent=(business?.max_monthly_transactions||100)+' tx / month';
+  document.getElementById('crumb').innerHTML='Books Lite / <b>'+esc(business?.business_name||'My business')+'</b>';
+  document.getElementById('avatar').textContent=initials(business?.business_name||user?.email);
+  document.querySelector('#dashboard .hero .eyebrow').textContent='TRB Books Lite · Live workspace';
+  const metrics=document.querySelectorAll('#dashboard .metric');
+  if(metrics[0])metrics[0].querySelector('b').textContent=count;
+  if(metrics[0])metrics[0].querySelector('span').textContent='Transactions recorded';
+  if(metrics[1])metrics[1].querySelector('b').textContent=accounts.length+' / '+(business?.max_bank_accounts||2);
+  if(metrics[1])metrics[1].querySelector('span').textContent='Bank accounts';
+  if(metrics[2])metrics[2].querySelector('b').textContent=money(net);
+  if(metrics[2])metrics[2].querySelector('span').textContent='Net movement recorded';
+  if(metrics[3])metrics[3].querySelector('b').textContent=reports.length?'Ready':'Pending';
+  if(metrics[3])metrics[3].querySelector('span').textContent='Monthly reports';
+  const delta=metrics[0]?.querySelector('.delta'); if(delta)delta.textContent=(business?.max_monthly_transactions||100)-count+' transaction capacity remaining';
+  const snap=document.querySelector('#dashboard .grid2 .card:nth-child(2)'); if(snap){
+    const vals=snap.querySelectorAll('.limit b'); if(vals[0])vals[0].textContent=money(income); if(vals[1])vals[1].textContent=money(expense); if(vals[2])vals[2].textContent=money(net); if(vals[3])vals[3].textContent=money(reconciliations[0]?.ledger_closing_balance||0);
+    snap.querySelector('.notice').innerHTML='<b>Workspace status</b><br><span class="tiny">'+(statements.length?'Your latest statement is recorded.':'Upload your first bank statement to begin.')+' '+(reconciled?'Reconciliation records are available.':'Reconciliation will appear here after processing.')+'</span>';
+  }
+  const rows=document.querySelector('#transactions tbody'); if(rows){
+    rows.innerHTML=transactions.slice(0,20).map(t=>'<tr><td>'+esc(t.transaction_date)+'</td><td>'+esc(t.description)+'</td><td>'+esc(t.category_code||t.suggested_category_code||'Needs review')+'</td><td><span class="status '+(Number(t.category_confidence||0)>=95?'ok':'warn')+'">'+(t.category_confidence?Number(t.category_confidence).toFixed(0)+'%':'Pending')+'</span></td><td class="amount '+(Number(t.amount||0)>=0?'income':'expense')+'">'+money(Math.abs(Number(t.amount||0)))+'</td></tr>').join('')||'<tr><td colspan="5" class="muted">No transactions recorded yet.</td></tr>';
+  }
+  const reportCard=document.querySelector('#reports .grid2 .card:first-child'); if(reportCard){
+    const items=reports.map(r=>'<div class="report"><div class="report-left"><div class="report-icon">'+esc((r.report_type||'REPORT').slice(0,3).toUpperCase())+'</div><div><h3>'+esc((r.report_type||'Report').replaceAll('_',' '))+'</h3><span class="tiny muted">'+esc(r.period_start||'')+' — '+esc(r.period_end||'')+'</span></div></div><button class="btn light" onclick="toast('Report download will be available when the report is marked ready.')">View</button></div>').join('');
+    reportCard.innerHTML=items||'<p class="muted">No reports have been shared yet. Your first report will appear here after processing.</p>';
+  }
+  const setup=document.querySelector('#settings .card.setting'); if(setup){
+    const fields=setup.querySelectorAll('input'); if(fields[0])fields[0].value=business?.business_name||''; if(fields[2])fields[2].value=accounts[0]?.bank_name||'Not set'; if(fields[3])fields[3].value=accounts[1]?.bank_name||'Not set';
+  }
+}
+async function boot(){
+  const {data:{session:s}}=await sb.auth.getSession(); session=s; user=s?.user||null;
+  if(!session){window.location.replace('/platform');return}
+  document.getElementById('avatar').onclick=()=>sb.auth.signOut().then(()=>window.location.replace('/platform'));
+  const {data:c,error:ce}=await sb.from('clients').select('*').eq('portal_user_id',user.id).eq('access_type','bookslite').maybeSingle();
+  if(ce||!c){document.body.innerHTML='<div style="min-height:100vh;display:grid;place-items:center;padding:30px;font-family:Inter,system-ui;background:#f5eee3"><div style="max-width:520px;background:#fff;padding:30px;border-radius:18px;border:1px solid #e4d9c9"><h2 style="font-family:Georgia,serif">Books Lite access not found</h2><p>Your secure login is not currently linked to a paid Books Lite client account. Please contact The Resident Bookkeeper.</p><button class="btn" onclick="window.location.href=\'/platform\'">Return to Team / Client login</button></div></div>';return}
+  const {data:paid}=await sb.from('invoices').select('id').eq('client_id',c.id).eq('status','Paid').limit(1);
+  if(!paid?.length){document.body.innerHTML='<div style="min-height:100vh;display:grid;place-items:center;padding:30px;font-family:Inter,system-ui;background:#f5eee3"><div style="max-width:520px;background:#fff;padding:30px;border-radius:18px;border:1px solid #e4d9c9"><h2 style="font-family:Georgia,serif">Books Lite payment not confirmed</h2><p>Books Lite access becomes available after Finance confirms payment and the invoice is marked Paid.</p><button class="btn" onclick="window.location.href=\'/platform\'">Return to login</button></div></div>';return}
+  client=c;
+  const {data:b,error:be}=await sb.from('books_lite_businesses').select('*').eq('owner_id',user.id).maybeSingle();
+  if(be||!b){document.body.innerHTML='<div style="min-height:100vh;display:grid;place-items:center;padding:30px;font-family:Inter,system-ui;background:#f5eee3"><div style="max-width:520px;background:#fff;padding:30px;border-radius:18px;border:1px solid #e4d9c9"><h2 style="font-family:Georgia,serif">Preparing your Books Lite workspace</h2><p>Your client access is active, but the dedicated Books Lite workspace has not finished provisioning. Please contact The Resident Bookkeeper.</p><button class="btn" onclick="window.location.href=\'/platform\'">Return to login</button></div></div>';return}
+  business=b; await refresh();
+}
+boot();
 </script>
 </body></html>
