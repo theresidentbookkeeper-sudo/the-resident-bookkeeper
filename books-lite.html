@@ -108,7 +108,9 @@ function startDemoProcessing(){toast('Demo: Nora would now extract, categorise a
   const {data:{session}}=await client.auth.getSession();
   if(!session){window.location.replace('/platform');return;}
   const user=session.user;
-  const {data:business,error:businessError}=await client.from('books_lite_businesses').select('*').eq('owner_id',user.id).eq('subscription_status','active').maybeSingle();\n  const {data:trbClient}=await client.from('clients').select('id,name').eq('portal_user_id',user.id).maybeSingle();\n  if(!trbClient){await client.auth.signOut();window.location.replace('/platform');return;}
+  const {data:business,error:businessError}=await client.from('books_lite_businesses').select('*').eq('owner_id',user.id).eq('subscription_status','active').maybeSingle();
+  const {data:trbClient}=await client.from('clients').select('id,name').eq('portal_user_id',user.id).maybeSingle();
+  if(!trbClient){await client.auth.signOut();window.location.replace('/platform');return;}
   if(businessError||!business){await client.auth.signOut();window.location.replace('/platform');return;}
 
   document.querySelector('.pill.demo').textContent='ACTIVE PLAN';
