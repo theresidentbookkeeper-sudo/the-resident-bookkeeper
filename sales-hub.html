@@ -9,7 +9,7 @@
 <main class="wrap"><div class="hero"><div><h1>Sales command centre</h1><p>Website enquiries become leads, follow-ups and quotes in one shared workspace.</p></div><button class="btn primary" id="refresh">Refresh</button></div>
 <div class="grid" id="stats"></div>
 <section id="leads"><div class="panel"><h2>Lead inbox</h2><div id="leadTable"></div></div></section>
-<section id="quotes"><div class="panel"><h2>Package & quote flow</h2><div class="quote"><div class="field"><label>Lead</label><select id="quoteLead"></select></div><div class="field"><label>Package</label><select id="package"><option>Starter</option><option>Growth</option><option>Business</option><option>Catch-up & Clean-up</option><option>Individual Services</option></select></div><div class="field"><label>Scope / deliverables</label><textarea id="scope" placeholder="e.g. 3 months catch-up, bank reconciliation, monthly reports"></textarea></div><div class="field"><label>Quote amount</label><input id="amount" type="number" min="0" placeholder="Enter amount"></div><div class="field full actions"><button class="btn primary" id="makeQuote">Create quote</button><button class="btn" id="copyQuote">Copy latest quote message</button></div></div><div id="quoteList"></div></div></section>
+<section id="quotes"><div class="panel"><h2>Package & quote flow</h2><div class="quote"><div class="field"><label>Lead</label><select id="quoteLead"></select></div><div class="field"><label>Package</label><select id="package"><option>Starter</option><option>Growth</option><option>Business</option><option>Catch-up & Clean-up</option><option>Individual Services</option><option>TRB Books Lite</option></select></div><div class="field"><label>Scope / deliverables</label><textarea id="scope" placeholder="e.g. 3 months catch-up, bank reconciliation, monthly reports"></textarea></div><div class="field"><label>Quote amount</label><input id="amount" type="number" min="0" placeholder="Enter amount"></div><div class="field full actions"><button class="btn primary" id="makeQuote">Create quote</button><button class="btn" id="copyQuote">Copy latest quote message</button></div></div><div id="quoteList"></div></div></section>
 <section id="followups"><div class="panel"><h2>Follow-up queue</h2><p class="small">New website leads receive a 0/2/5/10-day WhatsApp follow-up sequence.</p><div id="followupTable"></div></div></section>
 <section><div class="panel"><h2>Connection to your existing platform</h2><div class="grid"><div class="stat"><b>Leads</b><span>Capture, source, service and stage.</span></div><div class="stat"><b>Customers</b><span>Qualified leads are ready for customer conversion.</span></div><div class="stat"><b>Sales</b><span>Package, scope, quote and deal status.</span></div><div class="stat"><b>Finance + Nani</b><span>Won-deal context is kept in the shared sales state for the next integration layer.</span></div></div></div></section>
 </main>
@@ -20,6 +20,7 @@ const SUPABASE_KEY='sb_publishable_KqlXsF07Jgj-dS8P382reQ_-ShRBI7O';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
 const $=id=>document.getElementById(id);
 const wa='2348026000078';
+function normalizePhone(p){return String(p||'').replace(/\D/g,'').replace(/^0/,'234')}function leadPhone(l){return normalizePhone(l?.phone)}function waUrl(phone,msg){const n=normalizePhone(phone)||wa;return 'https://wa.me/'+n+'?text='+encodeURIComponent(msg||'')}
 let state={leads:[],quotes:[],followups:[]};
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 async function loadState(){
@@ -49,50 +50,20 @@ async function qualify(id){
  if(error)alert(error.message); else await render();
 }
 function whats(id){
- const l=state.leads.find(x=>x.id===id); if(!l)return;
- window.open('https://wa.me/'+wa+'?text='+encodeURIComponent('Hello '+(l.name||'')+', this is The Resident Bookkeeper following up on your enquiry for '+((l.notes||'').split('\n')[0].replace(/^Service:\s*/,''))),'_blank');
+ const l=state.leads.find(x=>x.id===id);if(!l)return;
+ const n=leadPhone(l);if(!n)return alert('This lead has no WhatsApp phone number recorded.');
+ window.open(waUrl(n,'Hello '+(l.name||'')+', this is The Resident Bookkeeper following up on your enquiry.'),'_blank');
 }
 async function markWon(quoteId){
- const q=state.quotes.find(x=>x.id===quoteId); if(!q)return;
- const lead=state.leads.find(x=>x.id===q.lead_id); if(!lead)return alert('The lead for this quote could not be found.');
- let clientId=lead.converted_client_id||null;
- if(!clientId){
-   const {data:client,error:clientError}=await sb.from('clients').insert({
-     name:lead.business_type||lead.name,
-     contact_name:lead.name,
-     phone:lead.phone,
-     email:lead.email,
-     status:'Active'
-   }).select().single();
-   if(clientError)return alert('Could not create customer: '+clientError.message);
-   clientId=client.id;
-   const {error:leadError}=await sb.from('leads').update({stage:'Won',converted:true,converted_client_id:clientId}).eq('id',lead.id);
-   if(leadError)return alert(leadError.message);
- }else{
-   await sb.from('leads').update({stage:'Won',converted:true}).eq('id',lead.id);
- }
- const invoiceNumber='INV-'+new Date().getFullYear()+'-'+Date.now().toString().slice(-6);
- const {data:invoice,error:invoiceError}=await sb.from('invoices').insert({
-   client_id:clientId,
-   number:invoiceNumber,
-   description:q.scope||q.package,
-   line_items:[{description:q.package,amount:Number(q.amount||0)}],
-   subtotal:Number(q.amount||0),
-   amount:Number(q.amount||0),
-   status:'Draft'
- }).select().single();
- if(invoiceError)return alert('Customer was created, but invoice creation failed: '+invoiceError.message);
- const {error:quoteError}=await sb.from('sales_quotes').update({status:'Won',updated_at:new Date().toISOString()}).eq('id',quoteId);
- if(quoteError)return alert(quoteError.message);
- await sb.from('platform_events').insert({event_type:'sale.won',source:'sales-workspace',entity_type:'invoice',entity_id:invoice.id,payload:{quote_id:quoteId,lead_id:lead.id,client_id:clientId,invoice_number:invoiceNumber,amount:Number(q.amount||0)}});
- alert('Sale marked Won and a draft invoice was created in Finance.');
+ const {error}=await sb.rpc('complete_sale_from_quote',{p_quote_id:quoteId});
+ if(error)return alert('Could not complete the sale: '+error.message);
+ alert('Sale marked Won, client created and draft invoice created in Finance.');
  await render();
 }
 async function sendFollow(id){
- const f=state.followups.find(x=>x.id===id); if(!f)return;
- window.open('https://wa.me/'+wa+'?text='+encodeURIComponent(f.message||''),'_blank');
- const {error}=await sb.from('sales_followups').update({status:'Sent',sent_at:new Date().toISOString()}).eq('id',id);
- if(error)alert(error.message); else await render();
+ const f=state.followups.find(x=>x.id===id);if(!f)return;
+ const l=state.leads.find(x=>x.id===f.lead_id)||{};const n=leadPhone(l);if(!n)return alert('This lead has no WhatsApp phone number recorded.');
+ window.open(waUrl(n,f.message||''),'_blank');
 }
 $('makeQuote').onclick=async()=>{
  const leadId=$('quoteLead').value;if(!leadId)return alert('Capture a lead first.');
