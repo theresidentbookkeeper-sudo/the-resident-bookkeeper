@@ -101,6 +101,7 @@ function startDemoProcessing(){toast('Demo: Nora would now extract, categorise a
 </script>
 <script>
 (async function(){
+  document.body.style.visibility='hidden';
   const SUPABASE_URL='https://njhohxhtqkktktngjflb.supabase.co';
   const SUPABASE_KEY='sb_publishable_KqlXsF07Jgj-dS8P382reQ_-ShRBI7O';
   const client=sb||window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -172,6 +173,7 @@ function startDemoProcessing(){toast('Demo: Nora would now extract, categorise a
   if(demoNote) demoNote.innerHTML='<b>Next step:</b> your statement has been uploaded securely to your private Books Lite workspace. Processing and reconciliation will update this dashboard when the bookkeeping workflow is run.';
   const footer=document.querySelector('.footer-note');
   if(footer) footer.textContent='TRB Books Lite is your dedicated bookkeeping workspace. Your data is isolated to your account and the plan is limited to 2 bank accounts and 100 transactions per month.';
+  document.body.style.visibility='visible';
 
   function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
   function formatNGN(v){return '₦'+Number(v||0).toLocaleString('en-NG',{maximumFractionDigits:2})}
