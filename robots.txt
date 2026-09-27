@@ -12,6 +12,7 @@ Disallow: /business-hub
 Disallow: /platform
 Disallow: /hub
 Disallow: /sales-hub
+Disallow: /books-lite
 
 User-agent: GPTBot
 Allow: /
@@ -19,5 +20,6 @@ Disallow: /business-hub
 Disallow: /platform
 Disallow: /hub
 Disallow: /sales-hub
+Disallow: /books-lite
 
 Sitemap: https://the-resident-bookkeeper.netlify.app/sitemap.xml
