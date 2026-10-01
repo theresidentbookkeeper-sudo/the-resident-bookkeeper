@@ -30,3 +30,8 @@ input,select,textarea{border-color:var(--trb-line)!important;background:var(--tr
   url("https://images.pexels.com/photos/6693661/pexels-photo-6693661.jpeg?auto=compress&cs=tinysrgb&w=1600") center/cover no-repeat;
   display:flex;align-items:flex-end;padding:24px;color:#fff;box-shadow:0 16px 38px rgba(26,21,18,.12)}
 .trb-photo-band strong{font:700 clamp(1.25rem,2.5vw,2rem) Georgia,serif;max-width:620px}
+
+/* Shared TRB visual system — readable on phone and desktop */
+:root{--trb-ink:#1a1512;--trb-cream:#f3eadb;--trb-paper:#fbf6ec;--trb-gold:#b99552;--trb-red:#c51f2b;--trb-muted:#665f58;--trb-line:#d8cbbb}
+body{font-size:15px!important;line-height:1.58!important}h1,h2,h3{font-weight:700!important}h1{font-size:clamp(2rem,4.5vw,3rem)!important}h2{font-size:clamp(1.45rem,3vw,2rem)!important}h3{font-size:1.12rem!important}.brand img,.brand-logo{object-fit:contain!important;border-radius:0!important}.btn,.btn.red,.btn.primary,.get-started{font-size:.9rem!important}
+@media(max-width:700px){body{font-size:14px!important}h1{font-size:clamp(1.9rem,8vw,2.55rem)!important}h2{font-size:clamp(1.35rem,6.5vw,1.85rem)!important}h3{font-size:1.05rem!important}.card{padding:17px!important}.hero{padding:48px 0 34px!important}.trb-photo-band{min-height:155px!important;margin-bottom:20px!important;padding:18px!important}.trb-photo-band strong{font-size:1.15rem!important}}
