@@ -14,14 +14,14 @@ Tagline: Accurate Records • Smarter Decisions • Stronger Business.
 - Ongoing bookkeeping support
 
 ## Public website
-https://the-resident-bookkeeper.netlify.app/
+https://residentbookkeeper.com/
 
 ## Regional service pages
-- Nigeria: https://the-resident-bookkeeper.netlify.app/bookkeeping-nigeria
-- United States: https://the-resident-bookkeeper.netlify.app/bookkeeping-us
-- United Kingdom: https://the-resident-bookkeeper.netlify.app/bookkeeping-uk
-- Australia: https://the-resident-bookkeeper.netlify.app/bookkeeping-australia
-- Canada: https://the-resident-bookkeeper.netlify.app/bookkeeping-canada
+- Nigeria: https://residentbookkeeper.com/bookkeeping-nigeria
+- United States: https://residentbookkeeper.com/bookkeeping-us
+- United Kingdom: https://residentbookkeeper.com/bookkeeping-uk
+- Australia: https://residentbookkeeper.com/bookkeeping-australia
+- Canada: https://residentbookkeeper.com/bookkeeping-canada
 
 ## Contact
 Email: theresidentbookkeeper@gmail.com
