@@ -22,4 +22,4 @@ Disallow: /hub
 Disallow: /sales-hub
 Disallow: /bookslite
 
-Sitemap: https://the-resident-bookkeeper.netlify.app/sitemap.xml
+Sitemap: https://residentbookkeeper.com/sitemap.xml
