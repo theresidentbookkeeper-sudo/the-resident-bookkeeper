@@ -1,7 +1,101 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TRB Business Operating Platform</title><link rel="icon" href="/assets/trb-logo.svg"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><style>
 :root{--ink:#171310;--cream:#f7f4ef;--paper:#fffdf9;--muted:#6d665f;--line:#e6ddd3;--red:#8f2f2f;--green:#315b3e}*{box-sizing:border-box}body{margin:0;background:var(--cream);color:var(--ink);font:14px system-ui,-apple-system,Segoe UI,sans-serif}button,.btn{border:1px solid var(--ink);background:var(--ink);color:#fff;padding:10px 14px;border-radius:10px;font-weight:800;cursor:pointer;text-decoration:none}button.light,.light{background:#fff;color:var(--ink);border-color:var(--line)}button.red{background:var(--red);border-color:var(--red)}button:disabled{opacity:.5}.hidden{display:none!important}.login{min-height:100vh;display:grid;grid-template-columns:1.1fr .9fr}.art{background:var(--ink) url('/assets/trb-cover-banner.png') center/cover;color:#fff;padding:50px;display:flex;flex-direction:column;justify-content:center}.art:before{content:''}.art img{width:76px;height:76px;border-radius:50%;object-fit:cover}.art h1{font:700 clamp(42px,6vw,70px)/1 Georgia,serif}.art h1 span{color:#d9bd7e}.box{display:grid;place-items:center;padding:30px}.card{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 12px 35px #00000008}.login-card{width:min(430px,100%)}label{display:block;font-size:11px;font-weight:800;text-transform:uppercase;margin:13px 0 5px}input{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px}.error{padding:11px;border-radius:9px;background:#fbefed;color:var(--red);margin-top:10px}.success{padding:11px;border-radius:9px;background:#eef4ef;color:var(--green);margin-top:10px}.app{min-height:100vh;display:grid;grid-template-columns:230px 1fr}.side{background:var(--ink);color:#fff;padding:18px 12px;position:sticky;top:0;height:100vh}.brand{display:flex;gap:8px;align-items:center;padding:5px 8px 18px;border-bottom:1px solid #3b3632}.brand img{width:42px;height:42px;border-radius:8px;object-fit:cover}.brand b{font-size:11px;letter-spacing:.08em}.brand small{display:block;color:#d9bd7e}.nav{display:grid;gap:5px;margin-top:16px}.nav button{width:100%;text-align:left;background:transparent;border:0;color:#ddd5ca}.nav button.active,.nav button:hover{background:#2b2724}.main{min-width:0}.top{height:68px;background:#fffdf9ee;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 26px;position:sticky;top:0;z-index:4}.content{width:min(1240px,94%);margin:auto;padding:26px 0 60px}.view{display:none}.view.active{display:block}.hero{display:flex;justify-content:space-between;gap:15px;align-items:end;margin-bottom:20px}.hero h1{font:700 clamp(34px,4vw,52px)/1.05 Georgia,serif;margin:6px 0}.muted{color:var(--muted)}.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:15px}.metric{cursor:pointer}.metric:hover{transform:translateY(-2px)}.metric b{display:block;font:700 29px Georgia,serif}.metric span{font-size:12px;color:var(--muted)}.section{margin-top:16px}.task{padding:13px 0;border-bottom:1px solid var(--line)}.task:last-child{border:0}.task-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}.task-actions button{font-size:11px;padding:7px 9px}.pill{display:inline-block;padding:5px 8px;border-radius:99px;background:#f0ece7;font-size:10px;font-weight:900;margin-right:4px}.tablewrap{overflow:auto}.table{width:100%;border-collapse:collapse}.table th,.table td{text-align:left;padding:10px;border-bottom:1px solid var(--line);font-size:12px}.table th{font-size:10px;text-transform:uppercase;color:var(--muted)}.ai{cursor:pointer}.ai:hover{border-color:#b99552}.notice{padding:14px;background:#f1eee9;border:1px solid var(--line);border-radius:12px}.black{background:#171310;color:#fff}.black .muted{color:#d8d0c8}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#b99552}.dot.on{background:#315b3e}.toast{position:fixed;right:16px;bottom:16px;background:#171310;color:#fff;padding:12px 15px;border-radius:10px;display:none}.toast.show{display:block}@media(max-width:850px){.login{grid-template-columns:1fr}.art{display:none}.app{grid-template-columns:72px 1fr}.brand b,.brand small,.nav span{display:none}.brand{justify-content:center}.nav button{text-align:center}.grid4,.grid3{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}}@media(max-width:560px){.app{display:block}.side{position:static;height:auto;display:flex;overflow:auto;align-items:center;padding:8px}.brand{flex:0 0 auto;padding:0;border:0}.brand img{width:36px;height:36px}.nav{display:flex;margin:0 0 0 8px}.nav button{white-space:nowrap}.nav span{display:inline}.top{padding:0 12px}.content{width:92%}.grid4,.grid3{grid-template-columns:1fr 1fr}.hero{align-items:flex-start;flex-direction:column}}
-</style><link rel="stylesheet" href="/assets/trb-brand.css"></head><body>
-<div id="login" class="login"><section class="art"><img src="/assets/trb-logo.svg"><div style="margin-top:25px;color:#d9bd7e;font-weight:900;letter-spacing:.12em">AI BUSINESS OPERATING PLATFORM</div><h1>The Resident <span>Bookkeeper</span></h1><p style="max-width:520px;color:#d8d0c8;line-height:1.7;font-size:17px">Your AI workforce runs growth, sales, client operations and bookkeeping while you monitor exceptions and step in where your judgment is needed.</p></section><section class="box"><form id="loginForm" class="card login-card"><b style="color:var(--red);letter-spacing:.12em">SECURE CLIENT AND TEAM ACCESS</b><h2>Welcome back.</h2><p class="muted">Sign in with your TRB account.</p><label>Email</label><input id="email" type="email" required><label>Password</label><input id="password" type="password" required><button id="loginBtn" style="width:100%;margin-top:16px">Sign in</button><div id="loginMsg"></div></form></section></div>
+</style><link rel="stylesheet" href="/assets/trb-brand.css"><style>
+/* Login (brand: cream, black, red, gold) */
+.login{grid-template-columns:1.1fr .9fr;background:#F5EBD6}
+.login .art{position:relative;overflow:hidden;background:#14110E;padding:44px 52px;display:flex;flex-direction:column;justify-content:space-between;gap:28px;color:#F5EBD6;font-family:"Schibsted Grotesk",system-ui,sans-serif}
+.login .art:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(180deg,transparent 0 37px,rgba(166,124,30,.10) 37px 38px);pointer-events:none}
+.login .art:after{content:"";position:absolute;top:0;bottom:0;left:38px;width:1px;background:rgba(184,17,43,.55)}
+.art>*{position:relative;z-index:1}
+.art-top{display:flex;align-items:center;gap:12px}.art-top img.art-logo{width:54px;height:54px;border-radius:50%}
+.art-top b{display:block;font-size:15px;letter-spacing:.02em}.art-top small{color:#C9A54A;font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.art-eyebrow{color:#C9A54A;font-weight:700;font-size:11px;letter-spacing:.16em;text-transform:uppercase}
+.login .art h1{font:800 clamp(38px,4.6vw,62px)/1.02 "Schibsted Grotesk",system-ui,sans-serif!important;letter-spacing:-.03em;margin:14px 0 14px;color:#fff}
+.login .art h1 span{color:#C9A54A;display:block}
+.art-copy p{max-width:470px;color:#d8cfc2;line-height:1.65;font-size:16px;margin:0}
+.collage{position:relative;height:300px;max-width:560px}
+.ph{position:absolute;margin:0;background:#FBF6EA;padding:7px 7px 7px;border-radius:6px;box-shadow:0 18px 40px rgba(0,0,0,.45)}
+.ph img{display:block;width:100%;height:100%;object-fit:cover;border-radius:3px}
+.ph1{left:0;top:10px;width:330px;height:226px;transform:rotate(-2.5deg)}
+.ph2{left:300px;top:0;width:190px;height:170px;transform:rotate(3deg)}
+.ph3{left:270px;top:150px;width:150px;height:150px;transform:rotate(-1.5deg);border-top:3px solid #B8112B}
+.ledger-chip{position:absolute;left:40px;top:236px;display:flex;align-items:center;gap:10px;background:#B8112B;color:#fff;padding:9px 14px;border-radius:999px;font-weight:700;font-size:13px;box-shadow:0 10px 24px rgba(0,0,0,.35)}
+.ledger-chip b{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#fff;color:#B8112B;font-size:12px}
+.art-foot{color:#9b9184;font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.login .box{background:#F5EBD6;padding:32px 20px}
+.login-card{width:min(440px,100%)}
+.login-card .card{background:#FBF6EA;border:1px solid #D9CCB0;border-radius:16px;padding:30px;box-shadow:0 22px 50px rgba(20,17,14,.10)}
+.login-card h2{font:800 30px/1.1 "Schibsted Grotesk",system-ui,sans-serif!important;margin:8px 0 6px;letter-spacing:-.02em}
+.eyebrow-red{color:#B8112B;font-weight:800;font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.login-card input{background:#fff!important;border:1px solid #D9CCB0!important;border-radius:10px;padding:13px 12px;font-size:15px}
+.login-card input:focus{outline:2px solid #A67C1E;outline-offset:1px}
+.login-card button.red{background:#B8112B;border-color:#B8112B;padding:13px;font-size:15px}
+.login-card button.red:hover{background:#930D22}
+.pw-row{display:flex;justify-content:space-between;align-items:end}
+.pw{position:relative}.pw input{padding-right:70px}
+.eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:transparent!important;border:0!important;color:#5A5247!important;font-size:12px!important;font-weight:700;padding:8px 10px;border-radius:8px}
+.eye:hover{color:#B8112B!important}
+.linkbtn{background:none!important;border:0!important;color:#B8112B!important;padding:0!important;font-weight:700;font-size:12px!important;cursor:pointer;margin:13px 0 5px}
+.linkbtn:hover{text-decoration:underline}.linkbtn.back{display:block;margin:18px auto 0;color:#5A5247!important}
+.login-help{text-align:center;color:#5A5247;font-size:13px;margin-top:18px}.login-help a{color:#B8112B;font-weight:700}
+.mobile-brand,.mobile-hero{display:none}
+@media(max-width:1100px){.collage{transform:scale(.85);transform-origin:left top;height:260px}}
+@media(max-width:850px){.login{grid-template-columns:1fr}.login .art{display:none}.mobile-brand{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:18px}.mobile-brand img{width:44px;height:44px;border-radius:50%}.mobile-brand b{font-size:16px}.login .box{align-items:start;padding-top:40px;background:#14110E;min-height:100vh}.mobile-hero{display:block;position:relative;border-radius:16px 16px 0 0;overflow:hidden;height:190px;margin-bottom:-14px}.mobile-hero img{width:100%;height:100%;object-fit:cover;object-position:center 25%}.mobile-hero:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 35%,rgba(20,17,14,.85))}.mobile-hero span{position:absolute;left:18px;bottom:26px;z-index:1;color:#fff;font:800 24px/1.1 'Schibsted Grotesk',system-ui,sans-serif}.mobile-hero em{font-style:normal;color:#E8C76A}.login-card .card{position:relative}.login .box .mobile-brand b{color:#fff}.login-help{color:#e8dfd2}.login-help a{color:#E8C76A}.login-card .card{padding:24px}}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head><body>
+<div id="login" class="login">
+<section class="art">
+ <div class="art-top"><img class="art-logo" src="/assets/trb-logo.svg" alt=""><div><b>The Resident Bookkeeper</b><small>Client &amp; team portal</small></div></div>
+ <div class="art-copy">
+  <div class="art-eyebrow">Accurate records &middot; Smarter decisions &middot; Stronger business</div>
+  <h1>Your books, <span>in good hands.</span></h1>
+  <p>Invoices, statements, monthly reports and the documents we need from you, all kept in one secure place.</p>
+ </div>
+ <div class="collage" aria-hidden="true">
+  <figure class="ph ph1"><img src="/assets/photo-bookkeeper.jpg" alt=""></figure>
+  <figure class="ph ph2"><img src="/assets/photo-laptop.jpg" alt=""></figure>
+  <figure class="ph ph3"><img src="/assets/photo-construction.jpg" alt=""></figure>
+  <div class="ledger-chip"><span>Reconciled</span><b>&#10003;</b></div>
+ </div>
+ <div class="art-foot">Nigeria &middot; United States &middot; United Kingdom &middot; Canada &middot; Australia</div>
+</section>
+<section class="box">
+ <div class="login-card">
+  <div class="mobile-brand"><img src="/assets/trb-logo.svg" alt=""><b>The Resident Bookkeeper</b></div>
+  <div class="mobile-hero" aria-hidden="true"><img src="/assets/photo-bookkeeper.jpg" alt=""><span>Your books, <em>in good hands.</em></span></div>
+  <form id="loginForm" class="card">
+   <div class="eyebrow-red">Secure client and team access</div>
+   <h2>Welcome back.</h2>
+   <p class="muted">Sign in with your TRB account.</p>
+   <label for="email">Email</label><input id="email" type="email" autocomplete="email" required>
+   <div class="pw-row"><label for="password">Password</label><button type="button" class="linkbtn" id="forgotLink">Forgot password?</button></div>
+   <div class="pw"><input id="password" type="password" autocomplete="current-password" required><button type="button" class="eye" data-for="password" aria-label="Show password">Show</button></div>
+   <button id="loginBtn" class="red" style="width:100%;margin-top:18px">Sign in</button>
+   <div id="loginMsg"></div>
+  </form>
+  <form id="forgotForm" class="card hidden">
+   <div class="eyebrow-red">Reset your password</div>
+   <h2>Forgot password?</h2>
+   <p class="muted">Enter the email you sign in with and we&rsquo;ll send you a link to set a new password.</p>
+   <label for="fEmail">Email</label><input id="fEmail" type="email" autocomplete="email" required>
+   <button id="forgotBtn" class="red" style="width:100%;margin-top:18px">Send reset link</button>
+   <div id="forgotMsg"></div>
+   <button type="button" class="linkbtn back" id="backToLogin">&larr; Back to sign in</button>
+  </form>
+  <form id="resetForm" class="card hidden">
+   <div class="eyebrow-red">Set your password</div>
+   <h2>Choose a new password.</h2>
+   <p class="muted">Use at least 8 characters. You&rsquo;ll use this to sign in from now on.</p>
+   <label for="newPw">New password</label><div class="pw"><input id="newPw" type="password" autocomplete="new-password" minlength="8" required><button type="button" class="eye" data-for="newPw" aria-label="Show password">Show</button></div>
+   <label for="newPw2">Confirm password</label><div class="pw"><input id="newPw2" type="password" autocomplete="new-password" minlength="8" required><button type="button" class="eye" data-for="newPw2" aria-label="Show password">Show</button></div>
+   <button id="resetBtn" class="red" style="width:100%;margin-top:18px">Save password</button>
+   <div id="resetMsg"></div>
+  </form>
+  <p class="login-help">Need help? <a href="https://wa.me/2348026000078" target="_blank" rel="noopener">Message us on WhatsApp</a> or email <a href="mailto:theresidentbookkeeper@gmail.com">theresidentbookkeeper@gmail.com</a></p>
+ </div>
+</section>
+</div>
 <div id="app" class="app hidden"><aside class="side"><div class="brand"><img src="/assets/trb-logo.svg"><div><b>THE RESIDENT<br>BOOKKEEPER</b><small>AI WORKFORCE</small></div></div><div class="nav">
 <button data-v="today" class="active">◉ <span>Today</span></button><button data-v="workforce">✦ <span>AI Workforce</span></button><button data-v="leads">▣ <span>Leads</span></button><button data-v="sales">↗ <span>Sales</span></button><button data-v="clients">◎ <span>Clients</span></button><button data-v="finance">₦ <span>Finance</span></button><button data-v="employees">♙ <span>Employees</span></button><button data-v="connections">⚙ <span>Connections</span></button><button data-v="nani">✧ <span>Nani</span></button></div></aside>
 <main class="main"><header class="top"><b id="crumb">Today</b><div><span id="userEmail" class="muted"></span> <button id="logout" class="light">Sign out</button></div></header><div class="content">
@@ -50,9 +144,17 @@ function bindTasks(){document.querySelectorAll('[data-act]').forEach(b=>b.onclic
 async function run(){const b1=$('run'),b2=$('run2');b1.disabled=b2.disabled=true;b1.textContent='Workforce running…';try{const {data:{session}}=await sb.auth.getSession();const r=await fetch(U+'/functions/v1/workforce-orchestrator',{method:'POST',headers:{Authorization:'Bearer '+session.access_token,apikey:K,'Content-Type':'application/json'},body:'{"run":"cycle"}'}),j=await r.json();if(!r.ok)throw Error(j.error||'Workforce failed');toast('AI workforce cycle started');await load()}catch(e){$('error').innerHTML='<div class="error">'+esc(e.message)+'</div>'}finally{b1.disabled=b2.disabled=false;b1.textContent='Run AI Workforce Now'}}
 $('run').onclick=run;$('run2').onclick=run;
 $('invite').onclick=async()=>{const name=$('en').value.trim(),email=$('ee').value.trim(),phone=$('ep').value.trim(),role=$('er').value.trim();if(!name||!email||!role){$('inviteMsg').className='error';$('inviteMsg').textContent='Name, email and role are required.';return}try{$('invite').disabled=true;const {data:{session}}=await sb.auth.getSession();const r=await fetch(U+'/functions/v1/employee-access-provision',{method:'POST',headers:{Authorization:'Bearer '+session.access_token,apikey:K,'Content-Type':'application/json'},body:JSON.stringify({name,email,phone,role})}),j=await r.json();if(!r.ok)throw Error(j.error||'Invite failed');$('inviteMsg').className='success';$('inviteMsg').textContent='Invitation sent.';load()}catch(e){$('inviteMsg').className='error';$('inviteMsg').textContent=e.message}finally{$('invite').disabled=false}};
-$('loginForm').onsubmit=async e=>{e.preventDefault();$('loginBtn').disabled=true;const r=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(r.error){$('loginMsg').className='error';$('loginMsg').textContent=r.error.message;$('loginBtn').disabled=false}else location.replace('/platform')};
+const RECOVERY=/type=(recovery|invite)/.test(location.hash)||/type=(recovery|invite)/.test(location.search);
+function showForm(id){['loginForm','forgotForm','resetForm'].forEach(f=>$(f).classList.toggle('hidden',f!==id))}
+function msg(el,cls,t){$(el).className=cls;$(el).textContent=t}
+document.querySelectorAll('.eye').forEach(b=>b.onclick=()=>{const i=$(b.dataset.for),show=i.type==='password';i.type=show?'text':'password';b.textContent=show?'Hide':'Show';b.setAttribute('aria-label',show?'Hide password':'Show password')});
+$('forgotLink').onclick=()=>{$('fEmail').value=$('email').value;$('forgotMsg').className='';$('forgotMsg').textContent='';showForm('forgotForm');$('fEmail').focus()};
+$('backToLogin').onclick=()=>showForm('loginForm');
+$('forgotForm').onsubmit=async e=>{e.preventDefault();$('forgotBtn').disabled=true;const r=await sb.auth.resetPasswordForEmail($('fEmail').value.trim(),{redirectTo:location.origin+'/platform'});$('forgotBtn').disabled=false;if(r.error)msg('forgotMsg','error',r.error.message);else msg('forgotMsg','success','If that email has an account, a reset link is on its way. Check your inbox and spam folder.')};
+$('resetForm').onsubmit=async e=>{e.preventDefault();const a=$('newPw').value,b=$('newPw2').value;if(a.length<8)return msg('resetMsg','error','Use at least 8 characters.');if(a!==b)return msg('resetMsg','error','The two passwords do not match.');$('resetBtn').disabled=true;const r=await sb.auth.updateUser({password:a});$('resetBtn').disabled=false;if(r.error)return msg('resetMsg','error',r.error.message);msg('resetMsg','success','Password saved. Taking you in…');history.replaceState(null,'','/platform');setTimeout(()=>location.replace('/platform'),900)};
+$('loginForm').onsubmit=async e=>{e.preventDefault();$('loginBtn').disabled=true;$('loginMsg').className='';$('loginMsg').textContent='';const r=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(r.error){msg('loginMsg','error',r.error.message==='Invalid login credentials'?'That email and password don\'t match. Try again or reset your password.':r.error.message);$('loginBtn').disabled=false}else location.replace('/platform')};
 $('logout').onclick=async()=>{await sb.auth.signOut();location.replace('/platform')};
 async function access(uid){const o=await sb.from('profile').select('owner_id').eq('owner_id',uid).maybeSingle();if(o.data)return'team';const e=await sb.from('employees').select('id').eq('portal_user_id',uid).eq('status','Active').maybeSingle();if(e.data)return'team';const c=await sb.from('clients').select('id,access_type').eq('portal_user_id',uid).eq('status','Active').maybeSingle();if(c.data?.access_type==='bookslite')return'bookslite';if(c.data)return'client';return'unknown'}
-async function boot(){const {data:{session}}=await sb.auth.getSession();if(!session)return;const a=await access(session.user.id);if(a==='bookslite')return location.replace('/bookslite');if(a==='client')return location.replace('/client-dashboard');if(a!=='team'){await sb.auth.signOut();return}$('login').classList.add('hidden');$('app').classList.remove('hidden');$('userEmail').textContent=session.user.email||'';const v=new URLSearchParams(location.search).get('view');if(v&&document.getElementById(v)){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===v));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.v===v));$('crumb').textContent=v==='workforce'?'AI Workforce':v[0].toUpperCase()+v.slice(1)}await load()}
-sb.auth.onAuthStateChange((_e,s)=>{if(!s){$('app').classList.add('hidden');$('login').classList.remove('hidden')}});boot();
+async function boot(){const {data:{session}}=await sb.auth.getSession();if(!session)return;if(RECOVERY){showForm('resetForm');return}const a=await access(session.user.id);if(a==='bookslite')return location.replace('/bookslite');if(a==='client')return location.replace('/client-dashboard');if(a!=='team'){await sb.auth.signOut();return}$('login').classList.add('hidden');$('app').classList.remove('hidden');$('userEmail').textContent=session.user.email||'';const v=new URLSearchParams(location.search).get('view');if(v&&document.getElementById(v)){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===v));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.v===v));$('crumb').textContent=v==='workforce'?'AI Workforce':v[0].toUpperCase()+v.slice(1)}await load()}
+sb.auth.onAuthStateChange((e,s)=>{if(e==='PASSWORD_RECOVERY'){$('app').classList.add('hidden');$('login').classList.remove('hidden');showForm('resetForm');return}if(!s){$('app').classList.add('hidden');$('login').classList.remove('hidden')}});boot();
 </script></body></html>
