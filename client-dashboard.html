@@ -1,9 +1,243 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Client Dashboard | The Resident Bookkeeper</title><link rel="icon" href="/assets/trb-logo.svg"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><style>
-:root{--ink:#171310;--cream:#f7f4ef;--paper:#fffdf9;--muted:#6d665f;--line:#e6ddd3;--red:#8f2f2f}*{box-sizing:border-box}body{margin:0;background:var(--cream);color:var(--ink);font:14px Inter,system-ui,sans-serif}.top{background:var(--ink);color:#fff;padding:14px 0}.wrap{width:min(1100px,94%);margin:auto}.bar{display:flex;align-items:center;justify-content:space-between;gap:15px}.brand{display:flex;gap:10px;align-items:center}.brand img{width:44px;height:44px;border-radius:8px;object-fit:cover}.brand b{font-size:11px;letter-spacing:.08em}.brand span{display:block;color:#d9bd7e;font-size:10px}.btn{border:1px solid var(--line);background:#fff;color:var(--ink);padding:9px 13px;border-radius:9px;font-weight:800;cursor:pointer}.hero{margin:24px 0;background:linear-gradient(90deg,rgba(23,19,16,.88),rgba(23,19,16,.48)),url('/assets/trb-cover-banner.png') center/cover;border-radius:20px;color:#fff;padding:34px}.hero h1{font:700 42px/1.05 Georgia,serif;margin:8px 0}.muted{color:var(--muted)}.hero .muted{color:#ddd4ca}.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:18px}.metric b{display:block;font:700 27px Georgia,serif}.metric span{font-size:12px;color:var(--muted)}.table{width:100%;border-collapse:collapse}.table th,.table td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);font-size:12px}.table th{font-size:10px;text-transform:uppercase;color:var(--muted)}.login{min-height:100vh;display:grid;place-items:center}.login .card{width:min(420px,92%)}input{width:100%;padding:12px;border:1px solid var(--line);border-radius:9px;margin:6px 0 12px}.error{padding:10px;background:#fbefed;color:#8f2f2f;border-radius:8px}@media(max-width:700px){.grid4{grid-template-columns:1fr 1fr}.hero h1{font-size:34px}}@media(max-width:480px){.grid4{grid-template-columns:1fr}.bar{align-items:flex-start}.hero{padding:25px}}</style><link rel="stylesheet" href="/assets/trb-brand.css"></head><body>
-<div id="login" class="login"><div class="card"><div class="brand"><img src="/assets/trb-logo.svg"><div><b>THE RESIDENT BOOKKEEPER</b><span>CLIENT ACCESS</span></div></div><h2>Client sign-in</h2><p class="muted">Use the email and password provided for your secure portal.</p><form id="loginForm"><label>Email</label><input id="email" type="email" required><label>Password</label><input id="password" type="password" required><button class="btn" style="width:100%">Sign in</button><div id="msg"></div></form></div></div>
-<div id="app" style="display:none"><header class="top"><div class="wrap bar"><div class="brand"><img src="/assets/trb-logo.svg"><div><b>THE RESIDENT BOOKKEEPER</b><span>CLIENT DASHBOARD</span></div></div><button id="logout" class="btn">Sign out</button></div></header><main class="wrap"><section class="hero"><div class="eyebrow">Secure client workspace</div><h1 id="name">Your dashboard</h1><p class="muted">View your invoices, shared bookkeeping information and documents in one place.</p></section><section class="grid4"><div class="card metric"><b id="invoiceCount">0</b><span>Invoices</span></div><div class="card metric"><b id="paidCount">0</b><span>Paid invoices</span></div><div class="card metric"><b id="openCount">0</b><span>Open invoices</span></div><div class="card metric"><b id="total">₦0</b><span>Invoice value</span></div></section><section class="card" style="margin-top:18px"><h2>Invoices</h2><div style="overflow:auto"><table class="table"><thead><tr><th>Number</th><th>Description</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead><tbody id="rows"></tbody></table></div></section></main></div>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Client Portal | The Resident Bookkeeper</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/trb-logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{--ink:#14110E;--paper:#F5EBD6;--card:#FBF6EA;--mist:#EBDFC6;--line:#D9CCB0;--mute:#5A5247;--red:#B8112B;--red-d:#930D22;--gold:#A67C1E;--ok:#2F6B45}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 "Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:var(--red)}
+.top{background:var(--ink);color:#fff;border-bottom:3px solid var(--red)}
+.top .in{max-width:1100px;margin:auto;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none}.brand img{width:40px;height:40px;border-radius:50%}
+.brand b{display:block;font-size:14px}.brand small{color:#E8C76A;font-size:10px;letter-spacing:.14em;text-transform:uppercase}
+.who{display:flex;gap:12px;align-items:center;font-size:13px;color:#d8cfc2}
+button,.btn{font:inherit;font-weight:700;border-radius:10px;border:1px solid var(--ink);background:var(--ink);color:#fff;padding:10px 14px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+button.red{background:var(--red);border-color:var(--red)}button.red:hover{background:var(--red-d)}
+button.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.top button.ghost{color:#fff;border-color:#4a433d}
+button.sm{padding:7px 10px;font-size:13px}
+button:disabled{opacity:.55;cursor:wait}
+.tabs{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.tabs .in{max-width:1100px;margin:auto;padding:0 12px;display:flex;gap:4px;overflow-x:auto}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;border-radius:0;color:var(--mute);padding:14px 12px;white-space:nowrap}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--red)}
+.tabs .count{background:var(--red);color:#fff;border-radius:99px;font-size:11px;padding:1px 7px;margin-left:4px}
+main{max-width:1100px;margin:auto;padding:26px 20px 70px}
+h1{font-size:clamp(26px,4vw,38px);line-height:1.1;margin:0 0 6px;letter-spacing:-.02em}
+h2{font-size:20px;margin:4px 0 6px}
+.eyebrow{color:var(--red);font-weight:800;font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.muted{color:var(--mute)}.small{font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 14px 34px rgba(20,17,14,.06);margin-top:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;cursor:pointer;text-align:left;color:var(--ink);display:block;font-weight:400}
+.stat b{display:block;font-size:28px}.stat span{color:var(--mute);font-size:13px}
+.stat:hover{border-color:var(--gold)}
+.item{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}.item b{display:block}
+.pill{display:inline-block;font-size:11px;font-weight:800;padding:5px 9px;border-radius:99px;white-space:nowrap}
+.p-warn{background:#fff2d6;color:#7a5a12}.p-ok{background:#e3f0e6;color:var(--ok)}.p-info{background:#efe7f6;color:#5b3d7a}.p-bad{background:#fbeceb;color:var(--red-d)}.p-mute{background:var(--mist);color:var(--mute)}
+label{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px}
+input,select,textarea{width:100%;font:inherit;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+textarea{min-height:90px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);outline-offset:1px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.msg{margin-top:12px;padding:11px 13px;border-radius:10px;font-size:14px}.msg.err{background:#fbeceb;color:var(--red-d)}.msg.ok{background:#eaf3ec;color:var(--ok)}
+.empty{padding:24px;text-align:center;color:var(--mute);background:#fff;border:1px dashed var(--line);border-radius:12px}
+.files{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.note{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:10px}
+.note.team{border-left:4px solid var(--gold)}.note.client{border-left:4px solid var(--red)}
+.note .meta{font-size:12px;color:var(--mute);margin-bottom:4px}
+.rep-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:start}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.steps span{font-size:12px;padding:4px 9px;border-radius:99px;background:var(--mist);color:var(--mute)}.steps span.on{background:var(--ink);color:#fff}
+.view{display:none}.view.on{display:block}
+.hidden{display:none!important}
+.gate{max-width:520px;margin:12vh auto;text-align:center}
+.doc{background:#fff;border:1px solid var(--line);border-radius:12px;padding:28px;max-width:760px;margin:auto}
+.doc table{width:100%;border-collapse:collapse;margin-top:14px}.doc th,.doc td{padding:9px 6px;border-bottom:1px solid var(--line);text-align:left}.doc td.r,.doc th.r{text-align:right}
+.modal{position:fixed;inset:0;background:rgba(20,17,14,.55);display:flex;align-items:flex-start;justify-content:center;padding:30px 14px;overflow:auto;z-index:20}
+.stamp{display:inline-block;border:3px solid var(--ok);color:var(--ok);font-weight:800;letter-spacing:.2em;padding:4px 12px;border-radius:8px;transform:rotate(-6deg)}
+@media print{body{background:#fff}.top,.tabs,main,.noprint{display:none!important}.modal{position:static;background:none;padding:0}.doc{border:0}}
+@media(max-width:760px){.grid3{grid-template-columns:1fr}.row3{grid-template-columns:1fr}.item{flex-direction:column;align-items:flex-start}.who span{display:none}}
+</style>
+</head>
+<body>
+<header class="top"><div class="in">
+  <a class="brand" href="/client-dashboard"><img src="/assets/trb-logo.svg" alt=""><div><b>The Resident Bookkeeper</b><small>Client portal</small></div></a>
+  <div class="who"><span id="who"></span><button class="ghost" id="out">Sign out</button></div>
+</div></header>
+<nav class="tabs hidden" id="tabs"><div class="in">
+  <button data-t="home" class="on">Overview</button>
+  <button data-t="reports">Reports <span class="count hidden" id="cRep"></span></button>
+  <button data-t="docs">Documents <span class="count hidden" id="cDoc"></span></button>
+  <button data-t="invoices">Invoices &amp; receipts <span class="count hidden" id="cInv"></span></button>
+</div></nav>
+
+<div id="gate" class="gate"><p class="muted">Opening your client portal…</p></div>
+
+<main id="app" class="hidden">
+  <!-- Overview -->
+  <section class="view on" id="v-home">
+    <div class="eyebrow" id="clientName"></div>
+    <h1 id="greet">Welcome.</h1>
+    <p class="muted">Everything between you and The Resident Bookkeeper in one place: your reports, the documents we need, and your invoices.</p>
+    <div class="grid3">
+      <button class="stat" data-go="reports"><b id="sRep">0</b><span>Reports waiting for your review</span></button>
+      <button class="stat" data-go="docs"><b id="sDoc">0</b><span>Documents we have asked for</span></button>
+      <button class="stat" data-go="invoices"><b id="sInv">0</b><span>Invoices to pay</span></button>
+    </div>
+    <div class="card"><h2>To do</h2><div id="todo"></div></div>
+    <div class="card"><h2>How we work together</h2>
+      <p class="muted small" style="margin:0">1. You upload your bank statements and anything we request. 2. We prepare your monthly reports and send them here for review. 3. You read them and leave notes, corrections or recommendations. 4. We adjust and send the final report for the month, and a final pack at year end.</p>
+      <p class="small muted">Need us? <a href="https://wa.me/2348026000078" target="_blank" rel="noopener">WhatsApp</a> · <a href="mailto:theresidentbookkeeper@gmail.com">theresidentbookkeeper@gmail.com</a></p>
+    </div>
+  </section>
+
+  <!-- Reports -->
+  <section class="view" id="v-reports">
+    <div class="eyebrow">Reports</div><h1>Your reports</h1>
+    <p class="muted">Review each report, leave notes or corrections, then mark it reviewed. We will send the final version once your comments are addressed.</p>
+    <div id="repList"></div>
+  </section>
+
+  <!-- Documents -->
+  <section class="view" id="v-docs">
+    <div class="eyebrow">Documents</div><h1>Documents</h1>
+    <div class="card"><h2>What we need from you</h2><div id="reqList"></div></div>
+    <div class="card" id="upCard"><h2>Upload a document</h2>
+      <p class="muted small">Bank statements, receipts, invoices, payroll or anything else for your books. PDF, Excel, CSV, Word or photos up to 20 MB.</p>
+      <form id="upForm">
+        <div class="row3">
+          <div><label for="upCat">What is it?</label><select id="upCat"><option value="bank_statement">Bank statement</option><option value="receipt_or_invoice">Receipts or invoices</option><option value="requested_document">Something you asked for</option><option value="other">Other</option></select></div>
+          <div><label for="upMonth">Month it relates to</label><input id="upMonth" type="month"></div>
+          <div id="reqPickWrap"><label for="upReq">For request</label><select id="upReq"><option value="">Not for a request</option></select></div>
+        </div>
+        <label for="upFile">File</label><input id="upFile" type="file" multiple accept=".pdf,.csv,.xls,.xlsx,.doc,.docx,.png,.jpg,.jpeg,.zip">
+        <label for="upNote">Note for us (optional)</label><input id="upNote" maxlength="300" placeholder="e.g. includes the two missing POS slips">
+        <button class="red" id="upBtn" style="margin-top:14px">Upload</button><div id="upMsg"></div>
+      </form>
+    </div>
+    <div class="card"><h2>Sent to us</h2><div id="fileList"></div></div>
+  </section>
+
+  <!-- Invoices -->
+  <section class="view" id="v-invoices">
+    <div class="eyebrow">Billing</div><h1>Invoices &amp; receipts</h1>
+    <div class="card"><div id="invList"></div></div>
+  </section>
+</main>
+<div id="modal" class="modal hidden"></div>
+
 <script>
-const URL='https://njhohxhtqkktktngjflb.supabase.co',KEY='sb_publishable_KqlXsF07Jgj-dS8P382reQ_-ShRBI7O',sb=supabase.createClient(URL,KEY,{auth:{persistSession:true,autoRefreshToken:true}}),$=id=>document.getElementById(id),money=v=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(Number(v||0)),esc=v=>String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-async function boot(){const {data:{session}}=await sb.auth.getSession();if(!session){$('login').style.display='grid';return}const {data:client,error}=await sb.from('clients').select('id,name,access_type,status').eq('portal_user_id',session.user.id).eq('status','Active').maybeSingle();if(!error&&client&&client.access_type==='bookslite'){location.replace('/bookslite');return}if(error||!client){await sb.auth.signOut();$('msg').className='error';$('msg').textContent='This account is not configured for the regular client portal.';return}const {data:invoices,error:ie}=await sb.from('invoices').select('number,description,amount,status,created_at').eq('client_id',client.id).order('created_at',{ascending:false});if(ie){$('msg').className='error';$('msg').textContent=ie.message;return}$('login').style.display='none';$('app').style.display='block';$('name').textContent=client.name||'Your dashboard';const rows=invoices||[],paid=rows.filter(x=>x.status==='Paid'),open=rows.filter(x=>!['Paid','Cancelled'].includes(x.status));$('invoiceCount').textContent=rows.length;$('paidCount').textContent=paid.length;$('openCount').textContent=open.length;$('total').textContent=money(rows.reduce((a,x)=>a+Number(x.amount||0),0));$('rows').innerHTML=rows.map(x=>'<tr><td>'+esc(x.number)+'</td><td>'+esc(x.description)+'</td><td>'+money(x.amount)+'</td><td>'+esc(x.status)+'</td><td>'+new Date(x.created_at).toLocaleDateString()+'</td></tr>').join('')||'<tr><td colspan="5">No invoices yet.</td></tr>'}
-$('loginForm').onsubmit=async e=>{e.preventDefault();const {error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error){$('msg').className='error';$('msg').textContent=error.message;return}boot()};$('logout').onclick=async()=>{await sb.auth.signOut();location.reload()};boot();
-</script></body></html>
+const U='https://njhohxhtqkktktngjflb.supabase.co',K='sb_publishable_KqlXsF07Jgj-dS8P382reQ_-ShRBI7O';
+const sb=supabase.createClient(U,K,{auth:{persistSession:true,autoRefreshToken:true}}),$=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+const ngn=v=>'₦'+Number(v||0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
+const d=v=>v?new Date(v.length===10?v+'T00:00:00':v).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'';
+const mon=v=>v?new Date(v+'T00:00:00Z').toLocaleDateString('en-GB',{month:'long',year:'numeric',timeZone:'UTC'}):'';
+const CAT={bank_statement:'Bank statement',requested_document:'Requested document',receipt_or_invoice:'Receipts / invoices',other:'Other'};
+const RST={for_review:['p-warn','Waiting for your review'],client_reviewed:['p-info','Reviewed · we are finalising'],final:['p-ok','Final']};
+let me=null,client=null,biz={},S={reports:[],files:[],notes:[],reqs:[],ufiles:[],invoices:[]};
+
+function tab(t){document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id==='v-'+t));history.replaceState(null,'','#'+t);scrollTo(0,0)}
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>tab(b.dataset.t));
+document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>tab(b.dataset.go));
+
+async function boot(){
+  const {data:{session}}=await sb.auth.getSession();if(!session)return location.replace('/platform');me=session.user;
+  const {data:c,error}=await sb.from('clients').select('*').eq('portal_user_id',me.id).maybeSingle();
+  if(!error&&c&&c.access_type==='bookslite')return location.replace('/bookslite');
+  if(error||!c){await sb.auth.signOut();return location.replace('/platform')}
+  client=c;$('who').textContent=me.email;$('clientName').textContent=c.name;
+  const h=new Date().getHours();$('greet').textContent=(h<12?'Good morning':h<17?'Good afternoon':'Good evening')+(c.contact_name?', '+c.contact_name.split(' ')[0]:'')+'.';
+  const pm=new Date();pm.setDate(1);pm.setMonth(pm.getMonth()-1);$('upMonth').value=pm.toISOString().slice(0,7);
+  sb.rpc('trb_business_card').then(r=>{biz=r.data||{}});
+  $('gate').classList.add('hidden');$('app').classList.remove('hidden');$('tabs').classList.remove('hidden');
+  await load();const h2=location.hash.slice(1);if(['reports','docs','invoices'].includes(h2))tab(h2);
+}
+
+async function load(){
+  const q=await Promise.all([
+    sb.from('client_reports').select('*').eq('client_id',client.id).order('period_start',{ascending:false,nullsFirst:false}).order('created_at',{ascending:false}),
+    sb.from('client_report_files').select('*').eq('client_id',client.id).order('created_at'),
+    sb.from('client_report_notes').select('*').eq('client_id',client.id).order('created_at'),
+    sb.from('client_document_requests').select('*').eq('client_id',client.id).order('created_at',{ascending:false}),
+    sb.from('client_files').select('*').eq('client_id',client.id).order('created_at',{ascending:false}).limit(200),
+    sb.from('invoices').select('*').eq('client_id',client.id).order('issue_date',{ascending:false})]);
+  [S.reports,S.files,S.notes,S.reqs,S.ufiles,S.invoices]=q.map(x=>x.data||[]);
+  renderHome();renderReports();renderDocs();renderInvoices();
+}
+
+function count(id,n){$(id).textContent=n;$(id).classList.toggle('hidden',!n)}
+function renderHome(){
+  const rr=S.reports.filter(r=>r.status==='for_review'),rq=S.reqs.filter(r=>r.status==='requested'),inv=S.invoices.filter(i=>i.status!=='Paid'&&i.status!=='Cancelled');
+  $('sRep').textContent=rr.length;$('sDoc').textContent=rq.length;$('sInv').textContent=inv.length;count('cRep',rr.length);count('cDoc',rq.length);count('cInv',inv.length);
+  const todo=[...rr.map(r=>['reports','Review '+esc(r.title),'Sent '+d(r.sent_at)]),...rq.map(r=>['docs','Upload: '+esc(r.title),r.due_date?'Due '+d(r.due_date):'Requested '+d(r.created_at)]),...inv.map(i=>['invoices','Pay invoice '+esc(i.number||''),ngn(i.amount)+(i.due_date?' · due '+d(i.due_date):'')])];
+  $('todo').innerHTML=todo.map(t=>'<div class="item"><div><b>'+t[1]+'</b><span class="small muted">'+t[2]+'</span></div><button class="ghost sm" data-go2="'+t[0]+'">Open</button></div>').join('')||'<div class="empty">You are all caught up. Thank you!</div>';
+  document.querySelectorAll('[data-go2]').forEach(b=>b.onclick=()=>tab(b.dataset.go2));
+}
+
+function renderReports(){
+  $('repList').innerHTML=S.reports.map(r=>{
+    const st=RST[r.status]||['p-mute',r.status],files=S.files.filter(f=>f.report_id===r.id),notes=S.notes.filter(n=>n.report_id===r.id);
+    const latest=Math.max(0,...files.map(f=>f.version));
+    return '<div class="card"><div class="rep-head"><div><div class="eyebrow">'+esc(r.period_type==='annual'?'Year-end pack':r.period_type)+'</div><h2>'+esc(r.title)+'</h2><span class="small muted">'+(r.period_start?mon(r.period_start)+(r.period_end&&r.period_type!=='monthly'?' – '+mon(r.period_end):''):'')+' · sent '+d(r.sent_at)+'</span></div><span class="pill '+st[0]+'">'+st[1]+'</span></div>'
+    +'<div class="steps"><span class="on">Prepared</span><span class="'+(['for_review','client_reviewed','final'].includes(r.status)?'on':'')+'">Your review</span><span class="'+(['client_reviewed','final'].includes(r.status)?'on':'')+'">Reviewed</span><span class="'+(r.status==='final'?'on':'')+'">Final</span></div>'
+    +(r.summary?'<p>'+esc(r.summary)+'</p>':'')
+    +'<div class="files">'+files.filter(f=>f.version===latest).map(f=>'<button class="ghost sm" data-file="'+esc(f.storage_path)+'">'+({pdf:'PDF',excel:'Excel',csv:'CSV'}[f.kind]||'File')+' · '+esc(f.file_name)+'</button>').join('')+(files.some(f=>f.version<latest)?'<span class="small muted" style="align-self:center">Earlier versions are kept by TRB</span>':'')+'</div>'
+    +'<h3 style="margin:18px 0 0;font-size:15px">Notes and corrections</h3>'+(notes.map(n=>'<div class="note '+n.author_type+'"><div class="meta">'+(n.author_type==='team'?'The Resident Bookkeeper':'You')+' · '+esc(n.note_type)+' · '+d(n.created_at)+'</div>'+esc(n.body)+'</div>').join('')||'<p class="small muted">No notes yet.</p>')
+    +'<div class="row3" style="grid-template-columns:200px 1fr;margin-top:10px"><select data-ntype="'+r.id+'"><option value="note">Note</option><option value="correction">Correction</option><option value="recommendation">Recommendation</option><option value="question">Question</option></select><textarea data-nbody="'+r.id+'" placeholder="Write a note, correction or recommendation for this report…" style="min-height:52px"></textarea></div>'
+    +'<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="ghost" data-nsend="'+r.id+'">Add note</button>'+(r.status==='for_review'?'<button class="red" data-reviewed="'+r.id+'">I have reviewed this report</button>':'')+'</div></div>'}).join('')||'<div class="card"><div class="empty">Your first report will appear here when it is ready for you.</div></div>';
+  document.querySelectorAll('[data-file]').forEach(b=>b.onclick=()=>openFile(b.dataset.file,b));
+  document.querySelectorAll('[data-nsend]').forEach(b=>b.onclick=async()=>{const id=b.dataset.nsend,body=document.querySelector('[data-nbody="'+id+'"]').value.trim();if(!body)return;b.disabled=true;const r=await sb.from('client_report_notes').insert({report_id:id,client_id:client.id,author_type:'client',note_type:document.querySelector('[data-ntype="'+id+'"]').value,body});b.disabled=false;if(r.error)return alert(r.error.message);await load()});
+  document.querySelectorAll('[data-reviewed]').forEach(b=>b.onclick=async()=>{if(!confirm('Mark this report as reviewed? Any notes you have added will be addressed before we send the final version.'))return;b.disabled=true;const r=await sb.rpc('client_mark_report_reviewed',{p_report:b.dataset.reviewed});if(r.error){b.disabled=false;return alert(r.error.message)}await load()});
+}
+
+function renderDocs(){
+  const open=S.reqs.filter(r=>r.status!=='cancelled');
+  $('reqList').innerHTML=open.map(r=>'<div class="item"><div><b>'+esc(r.title)+'</b><span class="small muted">'+(r.details?esc(r.details)+' · ':'')+(r.period_start?mon(r.period_start)+' · ':'')+(r.due_date?'due '+d(r.due_date):'requested '+d(r.created_at))+'</span></div>'+(r.status==='requested'?'<button class="red sm" data-req="'+r.id+'">Upload</button>':'<span class="pill '+(r.status==='accepted'?'p-ok':'p-info')+'">'+(r.status==='accepted'?'Received · thank you':'Uploaded · we are checking')+'</span>')+'</div>').join('')||'<div class="empty">Nothing outstanding. We will list here anything we need from you.</div>';
+  $('upReq').innerHTML='<option value="">Not for a request</option>'+S.reqs.filter(r=>r.status==='requested').map(r=>'<option value="'+r.id+'">'+esc(r.title)+'</option>').join('');
+  document.querySelectorAll('[data-req]').forEach(b=>b.onclick=()=>{$('upReq').value=b.dataset.req;$('upCat').value='requested_document';$('upCard').scrollIntoView({behavior:'smooth'});$('upFile').focus()});
+  $('fileList').innerHTML=S.ufiles.map(f=>'<div class="item"><div><b>'+esc(f.file_name)+'</b><span class="small muted">'+esc(CAT[f.category]||f.category)+(f.period_start?' · '+mon(f.period_start):'')+' · '+d(f.created_at)+(f.uploader==='team'?' · added by TRB':'')+(f.note?' · '+esc(f.note):'')+'</span></div><button class="ghost sm" data-file="'+esc(f.storage_path)+'">Open</button></div>').join('')||'<div class="empty">Nothing uploaded yet.</div>';
+  document.querySelectorAll('#fileList [data-file]').forEach(b=>b.onclick=()=>openFile(b.dataset.file,b));
+}
+function upMsg(c,t){$('upMsg').className='msg '+c;$('upMsg').textContent=t}
+$('upForm').onsubmit=async e=>{e.preventDefault();const files=[...$('upFile').files];if(!files.length)return upMsg('err','Choose a file to upload.');
+  if(files.some(f=>f.size>20*1024*1024))return upMsg('err','Each file must be under 20 MB.');
+  $('upBtn').disabled=true;upMsg('ok','Uploading…');
+  try{const mo=$('upMonth').value;for(const f of files){const safe=f.name.replace(/[^A-Za-z0-9._-]/g,'_'),path=client.id+'/uploads/'+(mo||'undated')+'/'+Date.now()+'-'+safe;
+    const up=await sb.storage.from('client-files').upload(path,f,{upsert:false,contentType:f.type||undefined});if(up.error)throw Error('Upload failed: '+up.error.message);
+    const r=await sb.rpc('client_submit_file',{p_client:client.id,p_path:path,p_name:f.name,p_category:$('upCat').value,p_period:mo?mo+'-01':null,p_request:$('upReq').value||null,p_note:$('upNote').value.trim()||null});if(r.error)throw Error(r.error.message)}
+    upMsg('ok',files.length+' file'+(files.length>1?'s':'')+' sent. Thank you, we have been notified.');$('upFile').value='';$('upNote').value='';await load()}
+  catch(err){upMsg('err',err.message)}finally{$('upBtn').disabled=false}};
+
+function renderInvoices(){
+  $('invList').innerHTML=S.invoices.map(i=>{const paid=i.status==='Paid';return '<div class="item"><div><b>'+esc(i.number||'Invoice')+' · '+ngn(i.amount)+'</b><span class="small muted">'+esc(i.description||'')+' · issued '+d(i.issue_date)+(paid?' · paid '+d(i.paid_date):i.due_date?' · due '+d(i.due_date):'')+'</span></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="pill '+(paid?'p-ok':'p-warn')+'">'+(paid?'Paid':esc(i.status||'Due'))+'</span><button class="ghost sm" data-inv="'+i.id+'">Invoice</button>'+(paid?'<button class="ghost sm" data-rct="'+i.id+'">Receipt</button>':'')+'</div></div>'}).join('')||'<div class="empty">No invoices yet.</div>';
+  document.querySelectorAll('[data-inv]').forEach(b=>b.onclick=()=>showDoc(b.dataset.inv,false));
+  document.querySelectorAll('[data-rct]').forEach(b=>b.onclick=()=>showDoc(b.dataset.rct,true));
+}
+function showDoc(id,receipt){
+  const i=S.invoices.find(x=>x.id===id);const items=Array.isArray(i.line_items)&&i.line_items.length?i.line_items:[{description:i.description||'Bookkeeping services',amount:i.subtotal||i.amount}];
+  const rows=items.map(l=>{const amt=l.amount??(Number(l.quantity||1)*Number(l.rate||l.unit_price||0));return '<tr><td>'+esc(l.description||l.name||'')+'</td><td class="r">'+ngn(amt)+'</td></tr>'}).join('');
+  $('modal').innerHTML='<div><div class="doc" id="docBody"><div style="display:flex;justify-content:space-between;gap:12px;align-items:start;border-top:6px solid var(--red);padding-top:16px"><div><img src="/assets/trb-logo.svg" alt="" style="width:54px;height:54px;border-radius:50%"><div style="font-weight:800;margin-top:6px">'+esc(biz.business_name||'The Resident Bookkeeper')+'</div><div class="small muted">'+esc(biz.address||'')+'<br>'+esc(biz.phone||'')+' '+esc(biz.email||'')+(biz.tin?'<br>TIN: '+esc(biz.tin):'')+'</div></div><div style="text-align:right"><div style="font-size:26px;font-weight:800;color:var(--red)">'+(receipt?'RECEIPT':'INVOICE')+'</div><div class="small">'+(receipt?'Receipt '+esc(i.receipt_number||'')+'<br>For invoice '+esc(i.number||''):'Invoice '+esc(i.number||''))+'<br>'+(receipt?'Paid '+d(i.paid_date):'Issued '+d(i.issue_date)+(i.due_date?'<br>Due '+d(i.due_date):''))+'</div></div></div>'
+  +'<p style="margin-top:20px"><span class="small muted">'+(receipt?'Received from':'Bill to')+'</span><br><b>'+esc(client.name)+'</b>'+(client.contact_name?'<br>'+esc(client.contact_name):'')+'</p>'
+  +'<table><thead><tr><th>Description</th><th class="r">Amount</th></tr></thead><tbody>'+rows+'</tbody><tfoot>'+(i.vat_enabled?'<tr><td class="r">Subtotal</td><td class="r">'+ngn(i.subtotal)+'</td></tr><tr><td class="r">VAT '+esc(i.vat_rate)+'%</td><td class="r">'+ngn(i.vat_amount)+'</td></tr>':'')+'<tr><th class="r">'+(receipt?'Amount paid':'Total due')+'</th><th class="r">'+ngn(i.amount)+'</th></tr></tfoot></table>'
+  +(receipt?'<p style="margin-top:22px"><span class="stamp">PAID</span></p><p class="small muted">Thank you for your payment.</p>':(biz.account_number?'<p class="small" style="margin-top:20px"><b>Pay to:</b> '+esc(biz.bank_name||'')+' · '+esc(biz.account_name||'')+' · '+esc(biz.account_number)+'</p>':''))
+  +'<p class="small muted" style="margin-top:24px">Accurate Records · Smarter Decisions · Stronger Business</p></div><div class="noprint" style="text-align:center;margin-top:14px"><button class="red" onclick="print()">Print or save as PDF</button> <button class="ghost" style="background:#fff" onclick="$(\'modal\').classList.add(\'hidden\')">Close</button></div></div>';
+  $('modal').classList.remove('hidden');
+}
+$('modal').onclick=e=>{if(e.target.id==='modal')$('modal').classList.add('hidden')};
+
+async function openFile(path,btn){btn.disabled=true;const w=window.open('','_blank');const r=await sb.storage.from('client-files').createSignedUrl(path,300);btn.disabled=false;if(r.error){w&&w.close();return alert('Could not open this file: '+r.error.message)}if(w)w.location=r.data.signedUrl;else location.href=r.data.signedUrl}
+$('out').onclick=async()=>{await sb.auth.signOut();location.replace('/platform')};
+boot();
+</script>
+</body>
+</html>
