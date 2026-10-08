@@ -250,6 +250,34 @@ input:focus,select:focus,textarea:focus{outline:none;box-shadow:0 0 0 3px var(--
 .strip-w{max-width:calc(var(--w) + var(--pad)*2);margin:clamp(40px,6vw,72px) auto 0;padding-inline:var(--pad)}
 .strip{display:block;width:100%;height:clamp(170px,26vw,320px);object-fit:cover;object-position:center 45%;border:2px solid var(--ink);background:var(--mist)}
 @media(max-width:900px){.hero-art .ledger{margin:-48px 6px 0 20px}.ind-row{grid-template-columns:1fr}.ind-photo{width:132px;height:132px;min-height:0}}
+
+.banner{position:relative;isolation:isolate;overflow:hidden;background:var(--ink);color:var(--card);padding-block:clamp(56px,8vw,116px)}
+.banner-img{position:absolute;top:0;right:0;height:100%;object-fit:cover;z-index:-2;display:block}
+.banner::after{content:"";position:absolute;inset:0;z-index:-1}
+.banner-txt{position:relative}
+.banner h1 em{font-style:normal;display:block;color:#EE4B5F}
+.banner .lede{margin-top:28px;color:#E9E2D4}
+.banner .hero-note{color:#CFC6B6}
+.banner .crumb{color:#CFC6B6}.banner .crumb a{color:var(--card)}
+.banner.split{padding-block:clamp(56px,6vw,80px)}
+.banner.split h1{font-size:clamp(2.4rem,4.5vw,3.6rem)}
+.banner.split .banner-img{width:56%;max-width:900px;object-position:60% 25%}
+.banner.split::after{background:linear-gradient(90deg,var(--ink) 45%,rgba(20,17,14,.6) 60%,rgba(20,17,14,0) 82%)}
+.banner.split .banner-txt{max-width:min(620px,54%)}
+.banner.full .banner-img{width:100%;object-position:center 45%}
+.banner.full::after{background:linear-gradient(90deg,rgba(20,17,14,.94) 0%,rgba(20,17,14,.84) 48%,rgba(20,17,14,.5) 100%)}
+.banner.full .banner-txt{max-width:780px}
+.about .ledger{margin-top:36px;max-width:440px}
+@media(max-width:900px){
+ .banner.split{padding-top:0}
+ .banner.split .banner-img{max-width:none}
+ .banner.split .banner-img{position:static;width:100%;height:auto;aspect-ratio:13/8;object-position:60% 18%;margin-bottom:36px}
+ .banner.split::after{display:none}
+ .banner.split .banner-txt{max-width:none}
+ .banner.full::after{background:rgba(20,17,14,.86)}
+ .banner .cta-row .btn{flex:1 1 240px}
+ .about .ledger{margin-right:6px}
+}
 </style><link rel="alternate" hreflang="x-default" href="https://residentbookkeeper.com/"><link rel="alternate" hreflang="en-NG" href="https://residentbookkeeper.com/bookkeeping-nigeria"><link rel="alternate" hreflang="en-US" href="https://residentbookkeeper.com/bookkeeping-us"><link rel="alternate" hreflang="en-GB" href="https://residentbookkeeper.com/bookkeeping-uk"><link rel="alternate" hreflang="en-CA" href="https://residentbookkeeper.com/bookkeeping-canada"><link rel="alternate" hreflang="en-AU" href="https://residentbookkeeper.com/bookkeeping-australia"><script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": ["Organization", "AccountingService"], "@id": "https://residentbookkeeper.com/#organization", "name": "The Resident Bookkeeper", "legalName": "THERESIDENTBOOKKEEPER LTD", "url": "https://residentbookkeeper.com/", "logo": "https://residentbookkeeper.com/assets/trb-icon-1024.png", "image": "https://residentbookkeeper.com/assets/trb-social-cover.png", "telephone": "+2348026000078", "address": {"@type": "PostalAddress", "streetAddress": "No. 1 Solomon Lar Way, Jabi", "addressLocality": "Abuja", "addressCountry": "NG"}, "sameAs": ["https://www.facebook.com/residentbookkeeper", "https://www.instagram.com/theresidentbookkeeper/"], "areaServed": ["Nigeria", "United States", "United Kingdom", "Australia", "Canada"], "knowsAbout": ["Bookkeeping", "Bank reconciliation", "Accounts payable", "Accounts receivable", "Catch-up bookkeeping", "Cleanup bookkeeping", "Financial reporting", "Payroll support"]}, {"@type": "WebPage", "@id": "https://residentbookkeeper.com/#webpage", "url": "https://residentbookkeeper.com/", "name": "The Resident Bookkeeper", "description": "Remote bookkeeping for businesses in Nigeria, the US, UK, Canada and Australia. Accurate records, reconciled accounts and monthly reports. Start with a free Books Health Check.", "about": {"@id": "https://residentbookkeeper.com/#organization"}, "inLanguage": "en"}, {"@type": "WebSite", "@id": "https://residentbookkeeper.com/#website", "url": "https://residentbookkeeper.com/", "name": "The Resident Bookkeeper", "publisher": {"@id": "https://residentbookkeeper.com/#organization"}}, {"@type": "FAQPage", "@id": "https://residentbookkeeper.com/#faq", "mainEntity": [{"@type": "Question", "name": "How does remote bookkeeping work?", "acceptedAnswer": {"@type": "Answer", "text": "You share bank statements, invoices and receipts online. We record and reconcile everything, then send your reports each month. Questions go through WhatsApp or email, so nothing waits for a meeting."}}, {"@type": "Question", "name": "What will it cost?", "acceptedAnswer": {"@type": "Answer", "text": "Monthly plans start at ₦350,000 in Nigeria, $250 in the US, £190 in the UK, C$350 in Canada and A$360 in Australia. Your quote depends on transaction volume, number of accounts and the condition of the books, and it is confirmed before work begins."}}, {"@type": "Question", "name": "Can you work in the software I already use?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. We work in Zoho Books, Sage, QuickBooks Online, and Excel or Google Sheets. If you use something else, tell us in the health check and we will confirm before quoting."}}, {"@type": "Question", "name": "My books are months behind. Can you still help?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Catch-up and clean-up are priced as one-off projects. We rebuild the missing periods, reconcile every account and hand you a clean closing position."}}, {"@type": "Question", "name": "Do you file taxes or give tax advice?", "acceptedAnswer": {"@type": "Answer", "text": "No. We keep your records ready for filing and work alongside your tax adviser or accountant. Tax filing, tax and legal advice, and audit are outside our service."}}, {"@type": "Question", "name": "What is the Free Books Health Check?", "acceptedAnswer": {"@type": "Answer", "text": "Eight short questions about how your books are kept today. We review your answers and reply with what needs attention and what it would cost to fix. It is free and commits you to nothing."}}]}]}</script></head><body data-country="">
 <a class="skip" href="#main">Skip to content</a>
 <header class="hdr"><div class="wrap">
@@ -261,13 +289,10 @@ input:focus,select:focus,textarea:focus{outline:none;box-shadow:0 0 0 3px var(--
 <div class="hdr-cta"><a class="link login" href="/platform">Client login</a><a class="btn red sm" href="#contact" data-open="hc">Free Books Health Check</a>
 <button class="burger" type="button" aria-controls="nav" aria-expanded="false" aria-label="Open menu"><span></span></button></div>
 </div></header><main id="main">
-<section class="hero"><div class="wrap">
-<div><h1>Books you can trust. <em>Closed every month.</em></h1>
+<section class="banner split on-dark"><img class="banner-img" src="/assets/photo-bookkeeper.jpg" width="520" height="355" alt="A bookkeeper at her desk with a laptop" fetchpriority="high" decoding="async"><div class="wrap"><div class="banner-txt"><h1>Books you can trust. <em>Closed every month.</em></h1>
 <p class="lede">The Resident Bookkeeper keeps your records accurate, your accounts reconciled and your reports on time. We work remotely with businesses in Nigeria, the United States, the United Kingdom, Canada and Australia.</p>
 <div class="cta-row"><a class="btn red" href="#contact" data-open="hc">Get a free Books Health Check</a><a class="btn ghost" href="#markets">See pricing for your country</a></div>
-<p class="hero-note">The health check takes about three minutes and commits you to nothing.</p></div>
-<div class="hero-art"><img class="hero-photo" src="/assets/photo-bookkeeper.jpg" width="520" height="355" alt="A bookkeeper at her desk with a laptop" fetchpriority="high" decoding="async"><aside class="ledger" aria-label="What we close for you every month"><header><span>Month-end close</span><span>Every month</span></header><ol><li><span class="tick" style="--i:0" aria-hidden="true"></span>Bank accounts reconciled</li><li><span class="tick" style="--i:1" aria-hidden="true"></span>Every transaction categorised</li><li><span class="tick" style="--i:2" aria-hidden="true"></span>Receivables and payables up to date</li><li><span class="tick" style="--i:3" aria-hidden="true"></span>Payroll and tax schedules checked</li><li><span class="tick" style="--i:4" aria-hidden="true"></span>Profit and loss and balance sheet sent</li></ol><footer><span>Status</span><b>Books closed</b></footer></aside></div>
-</div></section>
+<p class="hero-note">The health check takes about three minutes and commits you to nothing.</p></div></div></section>
 <section class="proof" aria-label="About the company"><div class="wrap"><ul>
 <li><b>15+ years</b>of accounting and bookkeeping experience</li>
 <li><b>Registered company</b>CAC RC 9906291, Nigeria</li>
@@ -315,7 +340,7 @@ input:focus,select:focus,textarea:focus{outline:none;box-shadow:0 0 0 3px var(--
 <p class="price num rv">&#8358;100,000<small>a year</small></p>
 </div></section>
 <section class="about" id="about"><div class="wrap">
-<div class="rv"><h2>A bookkeeping firm built to work remotely.</h2></div>
+<div class="rv"><h2>A bookkeeping firm built to work remotely.</h2><aside class="ledger" aria-label="What we close for you every month"><header><span>Month-end close</span><span>Every month</span></header><ol><li><span class="tick" style="--i:0" aria-hidden="true"></span>Bank accounts reconciled</li><li><span class="tick" style="--i:1" aria-hidden="true"></span>Every transaction categorised</li><li><span class="tick" style="--i:2" aria-hidden="true"></span>Receivables and payables up to date</li><li><span class="tick" style="--i:3" aria-hidden="true"></span>Payroll and tax schedules checked</li><li><span class="tick" style="--i:4" aria-hidden="true"></span>Profit and loss and balance sheet sent</li></ol><footer><span>Status</span><b>Books closed</b></footer></aside></div>
 <div class="body rv"><p class="lede">The Resident Bookkeeper is a registered Nigerian company based in Abuja. The practice is led by an accountant with more than 15 years of keeping books for construction, manufacturing and e-commerce businesses.</p>
 <p>We do one thing: bookkeeping. That focus is why the scope is clear, the price is agreed up front and the reports arrive when we said they would. Tax filing, audit and legal advice stay with your own advisers, and we give them clean records to work from.</p>
 <dl class="facts"><div><dt>Registered name</dt><dd>THERESIDENTBOOKKEEPER LTD</dd></div><div><dt>CAC number</dt><dd class="num">RC 9906291</dd></div><div><dt>Based in</dt><dd>Jabi, Abuja, Nigeria</dd></div><div><dt>Software</dt><dd>Zoho Books, Sage, QuickBooks Online, Excel</dd></div></dl></div>
