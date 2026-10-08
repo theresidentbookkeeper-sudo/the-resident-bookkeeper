@@ -52,7 +52,7 @@
 
 [[redirects]]
   from = "/bookslite-start"
-  to = "/books-lite-start.html"
+  to = "/bookslite-start.html"
   status = 200
 
 [[redirects]]
