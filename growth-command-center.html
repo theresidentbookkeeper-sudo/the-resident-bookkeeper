@@ -16,8 +16,8 @@ $('run').onclick=async()=>{const {data:{session}}=await sb.auth.getSession();if(
  const grid=document.getElementById('socialMetricGrid'),note=document.getElementById('socialMetricNote');
  if(!grid)return;
  try{
-  const {data:{user}}=await supabase.auth.getUser(); if(!user)return;
-  const {data,error}=await supabase.from('trb_social_metrics').select('*').order('metric_date',{ascending:false}).limit(20);
+  const {data:{user}}=await sb.auth.getUser(); if(!user)return;
+  const {data,error}=await sb.from('trb_social_metrics').select('*').order('metric_date',{ascending:false}).limit(20);
   if(error)throw error;
   const latest={};
   (data||[]).forEach(r=>{if(!latest[r.network])latest[r.network]=r});
