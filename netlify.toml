@@ -5,6 +5,11 @@
   force = true
 
 [[redirects]]
+  from = "/team"
+  to = "/team.html"
+  status = 200
+
+[[redirects]]
   from = "/about"
   to = "/about.html"
   status = 200
