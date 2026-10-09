@@ -15,6 +15,12 @@
   status = 200
 
 [[redirects]]
+  from = "/workspace"
+  to = "/workspace.html"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/platform"
   to = "/index.html"
   status = 200
