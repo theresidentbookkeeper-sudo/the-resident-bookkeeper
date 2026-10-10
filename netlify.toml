@@ -5,11 +5,6 @@
   force = true
 
 [[redirects]]
-  from = "/team"
-  to = "/team.html"
-  status = 200
-
-[[redirects]]
   from = "/about"
   to = "/about.html"
   status = 200
@@ -75,3 +70,9 @@
   from = "/growth-command-center"
   to = "/growth-command-center.html"
   status = 200
+
+[[redirects]]
+  from = "/drafts/*"
+  to = "/"
+  status = 302
+  force = true
