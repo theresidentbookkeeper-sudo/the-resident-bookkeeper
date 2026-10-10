@@ -1,193 +1,229 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="robots" content="noindex,nofollow">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TRB Books Lite | The Resident Bookkeeper</title>
+<title>Books Lite | The Resident Bookkeeper</title>
+<meta name="robots" content="noindex">
 <link rel="icon" href="/assets/trb-logo.svg">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
-:root{--ink:#151312;--cream:#f5eee3;--ivory:#fcfaf6;--gold:#b89555;--gold2:#d5bd8b;--red:#8f2f2f;--muted:#6f675e;--line:#e4d9c9;--green:#526b58;--amber:#9a6b27}
-*{box-sizing:border-box}body{margin:0;background:var(--cream);color:var(--ink);font:14px Inter,system-ui,-apple-system,sans-serif}.app{min-height:100vh;display:grid;grid-template-columns:250px 1fr}.side{background:var(--ink);color:#fff;padding:22px 16px;position:sticky;top:0;height:100vh}.brand{display:flex;align-items:center;gap:10px;padding:5px 8px 25px;border-bottom:1px solid #3a3531}.brand img{width:42px;height:42px;object-fit:cover;border-radius:8px}.brand strong{font-size:12px;letter-spacing:.08em;line-height:1.25}.brand span{display:block;color:var(--gold2);font-size:10px;margin-top:3px}.side nav{display:grid;gap:6px;margin-top:20px}.side button{width:100%;text-align:left;border:0;background:transparent;color:#ddd5ca;padding:11px 12px;border-radius:9px;cursor:pointer;font:inherit}.side button.active,.side button:hover{background:#2b2724;color:#fff}.side button.active{box-shadow:inset 3px 0 var(--gold)}.side small{display:block;color:#aaa097;line-height:1.5;margin:22px 10px}.main{min-width:0}.top{height:72px;background:rgba(252,250,246,.94);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 30px;position:sticky;top:0;z-index:5}.crumb{color:var(--muted);font-size:12px}.top-actions{display:flex;gap:8px;align-items:center}.pill{border:1px solid var(--line);background:#fff;padding:7px 10px;border-radius:999px;font-size:11px;font-weight:800}.pill.demo{color:var(--red);border-color:#d8b8b1;background:#fbf0ed}.avatar{width:34px;height:34px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:800}.content{width:min(1220px,94%);margin:auto;padding:28px 0 60px}.view{display:none}.view.active{display:block}.hero{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:24px}.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.16em;font-weight:900;color:var(--red)}h1{font:700 clamp(32px,4vw,48px)/1.05 Georgia,serif;margin:8px 0}h2{font:700 25px Georgia,serif;margin:0 0 12px}h3{font:700 18px Georgia,serif;margin:0 0 7px}.sub{color:var(--muted);max-width:700px;line-height:1.65}.btn{border:1px solid var(--ink);background:var(--ink);color:#fff;padding:10px 14px;border-radius:9px;font-weight:800;cursor:pointer}.btn.light{background:var(--ivory);color:var(--ink);border-color:var(--line)}.btn.red{background:var(--red);border-color:var(--red)}.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:13px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}.grid2{display:grid;grid-template-columns:1.35fr .65fr;gap:16px}.card{background:var(--ivory);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 8px 24px rgba(21,19,18,.045)}.metric b{display:block;font:700 27px Georgia,serif;margin-bottom:4px}.metric span{color:var(--muted);font-size:12px}.delta{font-size:11px;margin-top:8px;color:var(--green);font-weight:800}.section{margin-top:20px}.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.status{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;font-size:10px;font-weight:900;border:1px solid}.status.ok{color:var(--green);background:#eef4ef;border-color:#cbd9ce}.status.warn{color:var(--amber);background:#faf3e6;border-color:#e5cfaa}.status.red{color:var(--red);background:#fbefed;border-color:#e0c1bc}.bar{height:8px;background:#e8dfd4;border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:var(--gold);width:78%}.activity{display:grid;gap:10px}.activity-row{display:grid;grid-template-columns:42px 1fr auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.activity-row:last-child{border:0}.icon{width:38px;height:38px;border-radius:10px;background:#f0e6d7;display:grid;place-items:center;color:#72582e;font-weight:900}.muted{color:var(--muted)}.tiny{font-size:11px}.table{width:100%;border-collapse:collapse}.table th,.table td{text-align:left;padding:11px 9px;border-bottom:1px solid var(--line);font-size:12px}.table th{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em}.amount{text-align:right!important;font-variant-numeric:tabular-nums}.income{color:var(--green);font-weight:800}.expense{color:var(--red);font-weight:800}.upload{border:1.5px dashed #cbb99e;border-radius:16px;background:#fffaf2;padding:35px;text-align:center}.upload .big{font:700 25px Georgia,serif;margin:7px 0}.drop{margin:18px auto;width:min(600px,100%);padding:28px;border:1px solid var(--line);border-radius:14px;background:var(--ivory)}input[type=file]{display:none}.filelabel{display:inline-block}.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:20px}.step{padding:12px;border:1px solid var(--line);border-radius:11px;background:#fff}.step strong{display:block;font-size:12px}.step span{font-size:10px;color:var(--muted)}.step.done{border-color:#cbd9ce;background:#f5f9f5}.step.current{border-color:#d8b8b1;background:#fbf2f0}.report{display:flex;align-items:center;justify-content:space-between;gap:14px}.report-left{display:flex;align-items:center;gap:12px}.report-icon{width:42px;height:42px;border-radius:10px;background:#efe5d5;display:grid;place-items:center;color:#735a30;font-weight:900}.notice{padding:13px 15px;border-left:3px solid var(--red);background:#fbefec;color:#4e3a37;line-height:1.5}.setting{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field label{display:block;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px}.field input,.field select{width:100%;padding:11px;border:1px solid var(--line);border-radius:9px;background:#fff;font:inherit}.limit{display:flex;justify-content:space-between;margin:7px 0 5px;font-size:12px}.footer-note{margin-top:25px;color:var(--muted);font-size:11px;text-align:center}.toast{position:fixed;right:20px;bottom:20px;background:var(--ink);color:#fff;padding:13px 16px;border-radius:10px;box-shadow:0 12px 35px #0003;display:none;z-index:20}.toast.show{display:block}@media(max-width:1000px){.app{grid-template-columns:82px 1fr}.side{padding:16px 10px}.brand strong,.brand span,.side small,.side button span{display:none}.brand{justify-content:center;border:0}.side button{text-align:center}.grid4{grid-template-columns:1fr 1fr}.grid3{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}}@media(max-width:650px){.app{display:block}.side{position:static;height:auto;display:flex;align-items:center;padding:8px 10px}.side nav{display:flex;overflow:auto;margin:0 0 0 10px}.side button{width:auto;white-space:nowrap}.side button span{display:inline}.brand{padding:0;border:0}.brand img{width:36px;height:36px}.top{padding:0 15px}.crumb{display:none}.content{width:92%;padding-top:20px}.hero{display:block}.hero .btn{margin-top:12px}.grid4{grid-template-columns:1fr 1fr}.setting{grid-template-columns:1fr}.table{display:block;overflow:auto}.steps{grid-template-columns:1fr 1fr}}
+:root{--ink:#14110E;--paper:#F5EBD6;--card:#FBF6EA;--mist:#EBDFC6;--line:#D9CCB0;--mute:#5A5247;--red:#B8112B;--red-d:#930D22;--gold:#A67C1E;--ok:#2F6B45}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 "Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:var(--red)}
+.top{background:var(--ink);color:#fff;border-bottom:3px solid var(--red)}
+.top .in{max-width:1080px;margin:auto;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:#fff}
+.brand img{width:40px;height:40px;border-radius:50%}
+.brand b{display:block;font-size:14px}.brand small{color:#E8C76A;font-size:10px;letter-spacing:.14em;text-transform:uppercase}
+.who{display:flex;align-items:center;gap:12px;font-size:13px;color:#d8cfc2}
+button,.btn{font:inherit;font-weight:700;border-radius:10px;border:1px solid var(--ink);background:var(--ink);color:#fff;padding:10px 14px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+button.red,.btn.red{background:var(--red);border-color:var(--red)}button.red:hover{background:var(--red-d)}
+button.ghost,.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.top button.ghost{color:#fff;border-color:#4a433d}
+button:disabled{opacity:.55;cursor:wait}
+main{max-width:1080px;margin:auto;padding:28px 20px 60px}
+.hello h1{font-size:clamp(26px,4vw,38px);line-height:1.1;margin:0 0 6px;letter-spacing:-.02em}
+.hello p{margin:0;color:var(--mute)}
+.eyebrow{color:var(--red);font-weight:800;font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.grid{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;margin-top:22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 14px 34px rgba(20,17,14,.06)}
+.card h2{font-size:20px;margin:6px 0 4px;letter-spacing:-.01em}
+.muted{color:var(--mute)}.small{font-size:13px}
+label{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px}
+input,select{width:100%;font:inherit;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+input:focus,select:focus{outline:2px solid var(--gold);outline-offset:1px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.drop{text-transform:none;letter-spacing:0;font-size:15px;font-weight:400;margin-top:14px;border:2px dashed var(--line);border-radius:14px;padding:22px;text-align:center;background:#fff;cursor:pointer;transition:border-color .2s,background .2s}
+.drop:hover,.drop.on{border-color:var(--gold);background:#fffaf0}
+.drop b{display:block}.drop input{display:none}
+.msg{margin-top:12px;padding:11px 13px;border-radius:10px;font-size:14px}
+.msg.err{background:#fbeceb;color:var(--red-d)}.msg.ok{background:#eaf3ec;color:var(--ok)}
+.usage{margin-top:16px}
+.bar{height:8px;background:var(--mist);border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:var(--gold)}
+.list{display:grid;gap:10px;margin-top:12px}
+.item{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.item b{display:block}
+.pill{display:inline-block;font-size:11px;font-weight:800;padding:5px 9px;border-radius:99px;white-space:nowrap}
+.pill.work{background:#fff2d6;color:#7a5a12}.pill.done{background:#e3f0e6;color:var(--ok)}.pill.check{background:#efe7f6;color:#5b3d7a}.pill.bad{background:#fbeceb;color:var(--red-d)}
+.spin{display:inline-block;width:10px;height:10px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:s 1s linear infinite;vertical-align:-1px;margin-right:4px}
+@keyframes s{to{transform:rotate(360deg)}}
+.reports{margin-top:18px}
+.rep{display:grid;grid-template-columns:1.1fr 2fr auto;gap:16px;align-items:center;padding:16px 0;border-bottom:1px solid var(--line)}
+.rep:last-child{border-bottom:0}
+.rep h3{margin:0;font-size:18px}
+.figs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.fig{background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+.fig span{display:block;font-size:11px;color:var(--mute)}.fig b{font-size:15px}
+.fig b.neg{color:var(--red)}
+.acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.acts button{padding:8px 11px;font-size:13px}
+.empty{padding:26px;text-align:center;color:var(--mute);background:#fff;border:1px dashed var(--line);border-radius:12px}
+.how{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.step{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;font-size:13px}
+.step b{display:block;color:var(--red);font-size:12px;letter-spacing:.08em}
+.hidden{display:none!important}
+.gate{max-width:520px;margin:12vh auto;text-align:center}
+@media(max-width:860px){.grid{grid-template-columns:1fr}.rep{grid-template-columns:1fr}.acts{justify-content:flex-start}.how{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.row2{grid-template-columns:1fr}.figs{grid-template-columns:1fr}.fig{display:flex;justify-content:space-between;align-items:center}.fig span{font-size:13px}.item{flex-direction:column;align-items:flex-start}.who span{display:none}}
 </style>
-<link rel="stylesheet" href="/assets/trb-brand.css"></head>
+</head>
 <body>
-<div class="app">
-<aside class="side">
-  <div class="brand"><img src="/assets/trb-logo.svg" alt="TRB"><strong>TRB BOOKS LITE<span>SELF-SERVICE AI BOOKKEEPING</span></strong></div>
-  <nav>
-    <button class="active" data-view="dashboard">◈ <span>Overview</span></button>
-    <button data-view="upload">↑ <span>Upload Statement</span></button>
-    <button data-view="transactions">≡ <span>Transactions</span></button>
-    <button data-view="reconciliation">✓ <span>Reconciliation</span></button>
-    <button data-view="reports">▤ <span>Reports</span></button>
-    <button data-view="settings">⚙ <span>Business Setup</span></button>
-  </nav>
-  <small>Built by The Resident Bookkeeper. Designed for small Nigerian businesses that want simple, understandable books.</small>
-</aside>
-<main class="main"><div class="trb-photo-band"><strong>Practical bookkeeping support for clearer numbers, stronger decisions and sustainable growth.</strong></div>
-<header class="top"><div class="crumb" id="crumb">My Books Lite workspace</div><div class="top-actions"><span class="pill demo" id="liveBadge">LIVE BOOKSLITE</span><span class="pill">100 tx / month</span><button class="avatar" id="avatar" title="Sign out">NB</button></div></header>
-<div class="content">
+<header class="top"><div class="in">
+  <a class="brand" href="/bookslite"><img src="/assets/trb-logo.svg" alt=""><div><b>The Resident Bookkeeper</b><small>Books Lite</small></div></a>
+  <div class="who"><span id="who"></span><button class="ghost" id="out">Sign out</button></div>
+</div></header>
 
-<section id="dashboard" class="view active">
-<div class="hero"><div><div class="eyebrow">TRB Books Lite</div><h1>Your books, without the bookkeeping headache.</h1><p class="sub">Upload your bank statement. Nora, your AI Bookkeeping Assistant, processes the transactions, prepares the books and tells you when your reports are ready.</p></div><button class="btn" onclick="showView('upload')">Upload September statement</button></div>
-<div class="grid4">
-<div class="card metric"><b>87</b><span>Transactions recorded</span><div class="delta">Your monthly limit is shown below</div></div>
-<div class="card metric"><b>2 / 2</b><span>Bank accounts</span><div class="delta">Both accounts connected to this month</div></div>
-<div class="card metric"><b>₦0</b><span>September net profit</span><div class="delta">Based on your live workspace records</div></div>
-<div class="card metric"><b>Ready</b><span>Monthly reports</span><div class="delta">No action currently required</div></div>
-</div>
-<div class="section grid2">
-<div class="card"><div class="section-head"><h2>Nora's September work</h2><span class="status ok">● Complete</span></div><div class="activity">
-<div class="activity-row"><div class="icon">01</div><div><b>Transactions extracted</b><div class="tiny muted">87 transactions found across 2 statements</div></div><b>87/87</b></div>
-<div class="activity-row"><div class="icon">02</div><div><b>Transactions categorised</b><div class="tiny muted">84 automatic · 3 reviewed</div></div><b>87/87</b></div>
-<div class="activity-row"><div class="icon">03</div><div><b>Bank reconciliation</b><div class="tiny muted">Closing balances agree</div></div><b>100%</b></div>
-<div class="activity-row"><div class="icon">04</div><div><b>Reports prepared</b><div class="tiny muted">P&L · Balance Sheet · Reconciliation · Ledger</div></div><span class="status ok">Ready</span></div>
-</div></div>
-<div class="card"><h2>Business snapshot</h2><p class="tiny muted">Current workspace data</p><div class="section"><div class="limit"><span>Revenue</span><b>₦0</b></div><div class="limit"><span>Expenses</span><b>₦0</b></div><div class="limit"><span>Net profit</span><b>₦0</b></div><div class="limit"><span>Bank balance</span><b>₦0</b></div></div><div class="section notice"><b>3 things to review</b><br><span class="tiny">Your workspace will show review items here when bookkeeping records are available.</span></div></div>
-</div>
-<div class="section card"><div class="section-head"><div><h2>Monthly workflow</h2><div class="tiny muted">The same simple process every month.</div></div><button class="btn light" onclick="showView('reports')">View reports</button></div><div class="steps"><div class="step done"><strong>✓ Upload</strong><span>Bank statement</span></div><div class="step done"><strong>✓ Nora processes</strong><span>Extract + categorise</span></div><div class="step done"><strong>✓ Reconcile</strong><span>Check balances</span></div><div class="step current"><strong>● Download</strong><span>Your reports are ready</span></div></div></div>
-</section>
+<div id="gate" class="gate"><p class="muted"><span class="spin"></span>Opening your Books Lite workspace…</p></div>
 
-<section id="upload" class="view">
-<div class="hero"><div><div class="eyebrow">Monthly bookkeeping</div><h1>Upload your bank statement.</h1><p class="sub">Upload a PDF, CSV or Excel statement. In the live product, Nora will extract the transactions and begin the bookkeeping workflow.</p></div></div>
-<div class="upload"><div style="font-size:38px">↑</div><div class="big">Drop your statement here</div><p class="muted">PDF, CSV or XLSX · Maximum 2 bank accounts · Up to 100 transactions/month</p><div class="drop"><label class="btn filelabel"><input id="file" type="file" accept=".pdf,.csv,.xlsx,.xls" onchange="demoUpload(this)">Choose statement</label><p id="fileName" class="tiny muted">No file selected</p></div><button class="btn red" onclick="startDemoProcessing()">Start Nora's bookkeeping</button></div>
-<div class="section card"><h2>What Nora will do</h2><div class="grid3"><div><b>1. Extract</b><p class="tiny muted">Read dates, descriptions, debits, credits and balances.</p></div><div><b>2. Understand</b><p class="tiny muted">Categorise recurring transactions and flag uncertain items.</p></div><div><b>3. Reconcile</b><p class="tiny muted">Match the books to the bank and prepare your reports.</p></div></div></div>
-<div class="section notice"><b>Live workspace:</b> your uploaded statements and bookkeeping records appear here. Automated extraction/categorisation is shown only when processing records are available.</div>
-</section>
+<main id="app" class="hidden">
+  <section class="hello">
+    <div class="eyebrow" id="bizName">Books Lite</div>
+    <h1 id="greet">Your books, in good hands.</h1>
+    <p>Send your bank statement each month. Nora, our AI bookkeeper, prepares your reports and we email you when they are ready.</p>
+  </section>
 
-<section id="transactions" class="view">
-<div class="hero"><div><div class="eyebrow">Transaction review</div><h1>What Nora found.</h1><p class="sub">High-confidence transactions can be processed automatically. Uncertain items are brought to you in plain language.</p></div><span class="status warn">3 need review</span></div>
-<div class="card"><table class="table"><thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Confidence</th><th class="amount">Amount</th></tr></thead><tbody>
-<tr><td>02 Sep</td><td>ABC Supplies</td><td>Cost of Sales</td><td><span class="status ok">98%</span></td><td class="amount expense">₦45,000</td></tr>
-<tr><td>04 Sep</td><td>Customer Payment</td><td>Sales / Revenue</td><td><span class="status ok">99%</span></td><td class="amount income">₦180,000</td></tr>
-<tr><td>06 Sep</td><td>MTN Airtime</td><td>Communication</td><td><span class="status ok">97%</span></td><td class="amount expense">₦5,000</td></tr>
-<tr><td>08 Sep</td><td>Transfer to Chinedu</td><td>Needs your input</td><td><span class="status warn">41%</span></td><td class="amount expense">₦100,000</td></tr>
-<tr><td>11 Sep</td><td>Jumia</td><td>Business Expense</td><td><span class="status warn">72%</span></td><td class="amount expense">₦32,500</td></tr>
-<tr><td>18 Sep</td><td>POS Settlement</td><td>Sales / Revenue</td><td><span class="status ok">96%</span></td><td class="amount income">₦250,000</td></tr>
-</tbody></table></div>
-<div class="section card"><h2>Learning with your business</h2><p class="muted">When you confirm a category, Nora can remember that treatment for future statements. In the live product, every automated decision and correction will remain auditable.</p><button class="btn light" onclick="toast('Review workflow is part of the V1 design.')">Review flagged items</button></div>
-</section>
+  <div class="grid">
+    <section class="card">
+      <div class="eyebrow">Step 1</div>
+      <h2>Send a bank statement</h2>
+      <p class="muted small">PDF from your bank is best. Excel, CSV or a clear photo also work.</p>
+      <form id="upForm">
+        <div class="row2">
+          <div><label for="acct">Bank account</label><select id="acct"></select></div>
+          <div><label for="month">Statement month</label><input id="month" type="month" required></div>
+        </div>
+        <div id="newAcct" class="row2 hidden">
+          <div><label for="bankName">Bank name</label><input id="bankName" placeholder="e.g. GTBank"></div>
+          <div><label for="last4">Last 4 digits of account</label><input id="last4" inputmode="numeric" maxlength="4" placeholder="1234"></div>
+        </div>
+        <label class="drop" id="drop" for="file"><input id="file" type="file" accept=".pdf,.csv,.xls,.xlsx,.png,.jpg,.jpeg"><b id="fileLabel">Choose your statement file</b><span class="muted small">or drag it here · up to 15 MB</span></label>
+        <button class="red" id="upBtn" style="width:100%;justify-content:center;margin-top:14px">Send to Nora</button>
+        <div id="upMsg"></div>
+      </form>
+      <div class="usage"><div class="small muted" id="usageText">This month: 0 of 100 transactions</div><div class="bar"><i id="usageBar" style="width:0"></i></div></div>
+    </section>
 
-<section id="reconciliation" class="view">
-<div class="hero"><div><div class="eyebrow">Bank reconciliation</div><h1>Your books agree with the bank.</h1><p class="sub">Nora compares the statement activity with the bookkeeping ledger and highlights anything that does not explain the movement.</p></div><span class="status ok">● Reconciled</span></div>
-<div class="grid3"><div class="card metric"><b>₦1,250,000</b><span>Opening balance</span></div><div class="card metric"><b>+ ₦620,000</b><span>Net bank movement</span></div><div class="card metric"><b>₦0</b><span>Closing balance</span></div></div>
-<div class="section card"><h2>Reconciliation check</h2><div class="limit"><span>Bank statement</span><b>₦0</b></div><div class="limit"><span>Bookkeeping ledger</span><b>₦0</b></div><div class="bar"><i style="width:100%"></i></div><p class="tiny muted">Difference: ₦0 · 87 of 87 transactions matched or explained.</p></div>
-<div class="section notice"><b>Control principle:</b> Nora can automate matching, but the system should never hide a reconciliation difference simply to produce a "clean" result.</div>
-</section>
+    <section class="card">
+      <div class="eyebrow">Step 2</div>
+      <h2>Your statements</h2>
+      <p class="muted small">Watch Nora work. Most statements are ready within a few minutes.</p>
+      <div class="list" id="ups"></div>
+    </section>
+  </div>
 
-<section id="reports" class="view">
-<div class="hero"><div><div class="eyebrow">Report centre</div><h1>Your September reports are ready.</h1><p class="sub">Download a simple monthly business pack you can understand, share with your accountant or keep for your records.</p></div><span class="status ok">● Ready</span></div>
-<div class="grid2"><div class="card"><div class="report"><div class="report-left"><div class="report-icon">P&L</div><div><h3>Profit & Loss</h3><span class="tiny muted">September 2026</span></div></div><button class="btn light" onclick="toast('Demo download: Profit & Loss')">Download</button></div><div class="report"><div class="report-left"><div class="report-icon">BS</div><div><h3>Balance Sheet</h3><span class="tiny muted">September 2026</span></div></div><button class="btn light" onclick="toast('Demo download: Balance Sheet')">Download</button></div><div class="report"><div class="report-left"><div class="report-icon">REC</div><div><h3>Bank Reconciliation</h3><span class="tiny muted">2 bank accounts</span></div></div><button class="btn light" onclick="toast('Demo download: Reconciliation')">Download</button></div><div class="report"><div class="report-left"><div class="report-icon">TX</div><div><h3>Transaction Ledger</h3><span class="tiny muted">87 transactions</span></div></div><button class="btn light" onclick="toast('Demo download: Transaction Ledger')">Download</button></div></div><div class="card"><h2>Business snapshot</h2><p class="muted">A one-page summary of what happened this month.</p><div class="section"><div class="limit"><span>Revenue</span><b>₦2.45m</b></div><div class="limit"><span>Expenses</span><b>₦1.68m</b></div><div class="limit"><span>Net profit</span><b>₦770k</b></div></div><div class="section notice">Tax preparation, filing and professional tax advice are outside the standard Books Lite service.</div></div></div>
-</section>
+  <section class="card reports">
+    <div class="eyebrow">Step 3</div>
+    <h2>Your reports</h2>
+    <p class="muted small">Each month includes profit and loss, a cash summary, the bank reconciliation and every transaction, as PDF and Excel.</p>
+    <div id="reps"></div>
+  </section>
 
-<section id="settings" class="view">
-<div class="hero"><div><div class="eyebrow">Business setup</div><h1>Keep your setup simple.</h1><p class="sub">Books Lite is deliberately limited so it stays easy to use and predictable.</p></div></div>
-<div class="card setting"><div class="field"><label>Business name</label><input value="Demo Business Nigeria Ltd" readonly></div><div class="field"><label>Business type</label><select><option>Professional Services</option><option>E-commerce / Online Store</option><option>Construction / Contracting</option><option>Retail</option></select></div><div class="field"><label>Primary bank account</label><input value="GTBank — Business Current" readonly></div><div class="field"><label>Second bank account</label><input value="Access Bank — Business Savings" readonly></div></div>
-<div class="section grid2"><div class="card"><h2>Books Lite limits</h2><div class="limit"><span>Bank accounts</span><b>2 / 2</b></div><div class="bar"><i style="width:100%"></i></div><div class="limit"><span>Monthly transactions</span><b>87 / 100</b></div><div class="bar"><i style="width:87%"></i></div><p class="tiny muted">If your business grows beyond these limits, TRB can help you move to a larger plan or managed bookkeeping.</p></div><div class="card"><h2>When your business grows</h2><p class="muted">Books Lite is the starting point, not the ceiling.</p><button class="btn" onclick="toast('Upgrade pathway connected to The Resident Bookkeeper.')">Talk to TRB</button></div></div>
-</section>
-<p class="footer-note">This is your private TRB Books Lite workspace. Your records belong to your business account and are protected by your secure login.</p>
-</div></main></div>
-<div id="toast" class="toast"></div>
+  <section class="card reports">
+    <h2>How Books Lite works</h2>
+    <div class="how">
+      <div class="step"><b>1 · SEND</b>Upload your monthly bank statement for up to 2 business accounts.</div>
+      <div class="step"><b>2 · PROCESS</b>Nora reads, sorts and categorises every transaction.</div>
+      <div class="step"><b>3 · CHECK</b>Your balances are reconciled. Anything unusual is checked by our team.</div>
+      <div class="step"><b>4 · RECEIVE</b>We email you, and your reports are here to view and download.</div>
+    </div>
+    <p class="small muted" style="margin-top:14px">Questions? <a href="https://wa.me/2348026000078" target="_blank" rel="noopener">WhatsApp us</a> or email <a href="mailto:theresidentbookkeeper@gmail.com">theresidentbookkeeper@gmail.com</a>. Books Lite covers up to 100 transactions a month and does not include tax filing.</p>
+  </section>
+</main>
+
 <script>
-const SUPABASE_URL='https://njhohxhtqkktktngjflb.supabase.co';
-const SUPABASE_KEY='sb_publishable_KqlXsF07Jgj-dS8P382reQ_-ShRBI7O';
-const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
-let session=null, user=null, client=null, business=null, accounts=[], statements=[], transactions=[], reports=[], reconciliations=[];
+const U='https://njhohxhtqkktktngjflb.supabase.co',K='sb_publishable_KqlXsF07Jgj-dS8P382reQ_-ShRBI7O';
+const sb=supabase.createClient(U,K,{auth:{persistSession:true,autoRefreshToken:true}}),$=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+let biz=null,accts=[],session=null,poll=null;
+const cur=()=>biz?.currency_code||'NGN';
+const money=v=>{const n=Number(v||0),t=Math.abs(n).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});return (n<0?'-':'')+(cur()==='NGN'?'₦':cur()+' ')+t};
+const monthName=d=>new Date(d+'T00:00:00Z').toLocaleDateString('en-GB',{month:'long',year:'numeric',timeZone:'UTC'});
+const STATUS={uploaded:['work','Waiting for Nora',true],extracting:['work','Nora is reading it',true],processing:['work','Nora is sorting transactions',true],review:['check','Being checked by our team'],reconciled:['done','Done · report ready'],failed:['bad','We are looking into it']};
 
-function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.side button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));window.scrollTo({top:0,behavior:'smooth'})}
-document.querySelectorAll('.side button').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));
-function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600)}
-function money(n){return '₦'+Number(n||0).toLocaleString('en-NG',{maximumFractionDigits:2})}
-function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
-function initials(name){return String(name||'TRB').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase()||'TRB'}
-function demoUpload(input){document.getElementById('fileName').textContent=input.files?.[0]?.name||'No file selected';toast('Statement selected. It will be saved to your secure Books Lite workspace when submitted.')}
-async function startDemoProcessing(){
-  const input=document.getElementById('file'), file=input?.files?.[0];
-  if(!file){toast('Choose a bank statement first.');return}
-  if(!business){toast('Your Books Lite workspace is not ready yet.');return}
-  try{
-    let account=accounts[0];
-    if(!account){
-      const {data,error}=await sb.from('books_lite_bank_accounts').insert({business_id:business.id,owner_id:user.id,bank_name:'Primary Business Bank',account_name:business.business_name,currency_code:'NGN'}).select().single();
-      if(error) throw error; account=data; accounts=[account];
-    }
-    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-    const path=client.id+'/bookslite/'+Date.now()+'_'+safe;
-    const up=await sb.storage.from('client-files').upload(path,file,{upsert:false});
-    if(up.error) throw up.error;
-    const today=new Date(), startOfMonth=new Date(today.getFullYear(),today.getMonth(),1), endOfMonth=new Date(today.getFullYear(),today.getMonth()+1,0);
-    const {data,error}=await sb.from('books_lite_statement_uploads').insert({
-      business_id:business.id,bank_account_id:account.id,owner_id:user.id,
-      period_start:startOfMonth.toISOString().slice(0,10),period_end:endOfMonth.toISOString().slice(0,10),
-      file_name:file.name,storage_path:path,file_type:file.type||'application/octet-stream',status:'uploaded'
-    }).select().single();
-    if(error) throw error;
-    statements=[data,...statements];
-    toast('Statement uploaded. Nora processing is queued for this workspace.');
-    document.getElementById('fileName').textContent=file.name+' · Uploaded';
-    await refresh();
-  }catch(err){toast(err?.message||'Upload could not be completed.')}
-}
-async function refresh(){
-  if(!business)return;
-  const [a,st,tr,rep,rec]=await Promise.all([
-    sb.from('books_lite_bank_accounts').select('*').eq('business_id',business.id).order('created_at'),
-    sb.from('books_lite_statement_uploads').select('*').eq('business_id',business.id).order('uploaded_at',{ascending:false}).limit(20),
-    sb.from('books_lite_transactions').select('*').eq('business_id',business.id).order('transaction_date',{ascending:false}).limit(500),
-    sb.from('books_lite_reports').select('*').eq('business_id',business.id).order('created_at',{ascending:false}).limit(20),
-    sb.from('books_lite_reconciliations').select('*').eq('business_id',business.id).order('created_at',{ascending:false}).limit(20)
-  ]);
-  accounts=a.data||[]; statements=st.data||[]; transactions=tr.data||[]; reports=rep.data||[]; reconciliations=rec.data||[];
-  render();
-}
-function render(){
-  const count=transactions.length, income=transactions.reduce((s,t)=>s+Number(t.credit||0),0), expense=transactions.reduce((s,t)=>s+Number(t.debit||0),0), net=income-expense;
-  const reconciled=reconciliations.filter(r=>['reconciled','reconciled_review'].includes(r.status)).length;
-  document.querySelector('.top-actions .pill:not(.demo)').textContent=(business?.max_monthly_transactions||100)+' tx / month';
-  document.getElementById('crumb').innerHTML='Books Lite / <b>'+esc(business?.business_name||'My business')+'</b>';
-  document.getElementById('avatar').textContent=initials(business?.business_name||user?.email);
-  document.querySelector('#dashboard .hero .eyebrow').textContent='TRB Books Lite · Live workspace';
-  const metrics=document.querySelectorAll('#dashboard .metric');
-  if(metrics[0])metrics[0].querySelector('b').textContent=count;
-  if(metrics[0])metrics[0].querySelector('span').textContent='Transactions recorded';
-  if(metrics[1])metrics[1].querySelector('b').textContent=accounts.length+' / '+(business?.max_bank_accounts||2);
-  if(metrics[1])metrics[1].querySelector('span').textContent='Bank accounts';
-  if(metrics[2])metrics[2].querySelector('b').textContent=money(net);
-  if(metrics[2])metrics[2].querySelector('span').textContent='Net movement recorded';
-  if(metrics[3])metrics[3].querySelector('b').textContent=reports.length?'Ready':'Pending';
-  if(metrics[3])metrics[3].querySelector('span').textContent='Monthly reports';
-  const delta=metrics[0]?.querySelector('.delta'); if(delta)delta.textContent=(business?.max_monthly_transactions||100)-count+' transaction capacity remaining';
-  const snap=document.querySelector('#dashboard .grid2 .card:nth-child(2)'); if(snap){
-    const vals=snap.querySelectorAll('.limit b'); if(vals[0])vals[0].textContent=money(income); if(vals[1])vals[1].textContent=money(expense); if(vals[2])vals[2].textContent=money(net); if(vals[3])vals[3].textContent=money(reconciliations[0]?.ledger_closing_balance||0);
-    snap.querySelector('.notice').innerHTML='<b>Workspace status</b><br><span class="tiny">'+(statements.length?'Your latest statement is recorded.':'Upload your first bank statement to begin.')+' '+(reconciled?'Reconciliation records are available.':'Reconciliation will appear here after processing.')+'</span>';
-  }
-  const rows=document.querySelector('#transactions tbody'); if(rows){
-    rows.innerHTML=transactions.slice(0,20).map(t=>'<tr><td>'+esc(t.transaction_date)+'</td><td>'+esc(t.description)+'</td><td>'+esc(t.category_code||t.suggested_category_code||'Needs review')+'</td><td><span class="status '+(Number(t.category_confidence||0)>=95?'ok':'warn')+'">'+(t.category_confidence?Number(t.category_confidence).toFixed(0)+'%':'Pending')+'</span></td><td class="amount '+(Number(t.amount||0)>=0?'income':'expense')+'">'+money(Math.abs(Number(t.amount||0)))+'</td></tr>').join('')||'<tr><td colspan="5" class="muted">No transactions recorded yet.</td></tr>';
-  }
-  const activity=document.querySelector('#dashboard .activity'); if(activity){activity.innerHTML='<div class="activity-row"><div class="icon">01</div><div><b>Statements uploaded</b><div class="tiny muted">'+statements.length+' statement'+(statements.length===1?'':'s')+' recorded</div></div><b>'+statements.length+'</b></div><div class="activity-row"><div class="icon">02</div><div><b>Transactions recorded</b><div class="tiny muted">'+count+' transaction'+(count===1?'':'s')+' currently in the workspace</div></div><b>'+count+'</b></div><div class="activity-row"><div class="icon">03</div><div><b>Reconciliation</b><div class="tiny muted">'+(reconciled?'Reconciliation record available':'Waiting for processing')+'</div></div><span class="status '+(reconciled?'ok':'warn')+'">'+(reconciled?'Ready':'Pending')+'</span></div><div class="activity-row"><div class="icon">04</div><div><b>Reports</b><div class="tiny muted">'+reports.length+' report'+(reports.length===1?'':'s')+' shared with your workspace</div></div><span class="status '+(reports.length?'ok':'warn')+'">'+(reports.length?'Ready':'Pending')+'</span></div>'}
-  const reconMetrics=document.querySelectorAll('#reconciliation .grid3 .metric b'); if(reconMetrics.length>=3){reconMetrics[0].textContent=money(reconciliations[0]?.statement_opening_balance||0);reconMetrics[1].textContent=money((reconciliations[0]?.statement_closing_balance||0)-(reconciliations[0]?.statement_opening_balance||0));reconMetrics[2].textContent=money(reconciliations[0]?.statement_closing_balance||0)} const reconStatus=document.querySelector('#reconciliation .hero .status'); if(reconStatus){reconStatus.className='status '+(reconciled?'ok':'warn');reconStatus.textContent=reconciled?'● Reconciled':'● Pending'} const reconNote=document.querySelector('#reconciliation .section.notice'); if(reconNote)reconNote.innerHTML='<b>Control principle:</b> Your workspace will not hide a reconciliation difference. A reconciliation status will appear when processing records are available.';
-  const reportCard=document.querySelector('#reports .grid2 .card:first-child'); if(reportCard){
-    const items=reports.map(r=>'<div class="report"><div class="report-left"><div class="report-icon">'+esc((r.report_type||'REPORT').slice(0,3).toUpperCase())+'</div><div><h3>'+esc((r.report_type||'Report').replaceAll('_',' '))+'</h3><span class="tiny muted">'+esc(r.period_start||'')+' — '+esc(r.period_end||'')+'</span></div></div><button class="btn light" onclick="toast(\'Report download will be available when the report is marked ready.\')">View</button></div>').join('');
-    reportCard.innerHTML=items||'<p class="muted">No reports have been shared yet. Your first report will appear here after processing.</p>';
-  }
-  const setup=document.querySelector('#settings .card.setting'); if(setup){
-    const fields=setup.querySelectorAll('input'); if(fields[0])fields[0].value=business?.business_name||''; if(fields[2])fields[2].value=accounts[0]?.bank_name||'Not set'; if(fields[3])fields[3].value=accounts[1]?.bank_name||'Not set';
-  }
-}
+async function call(body){const r=await fetch(U+'/functions/v1/bookslite-nora',{method:'POST',headers:{Authorization:'Bearer '+session.access_token,apikey:K,'Content-Type':'application/json'},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||'Something went wrong');return j}
+
 async function boot(){
-  const {data:{session:s}}=await sb.auth.getSession(); session=s; user=s?.user||null;
-  if(!session){window.location.replace('/platform');return}
-  document.getElementById('avatar').onclick=()=>sb.auth.signOut().then(()=>window.location.replace('/platform'));
-  const {data:c,error:ce}=await sb.from('clients').select('*').eq('portal_user_id',user.id).eq('access_type','bookslite').maybeSingle();
-  if(ce||!c){document.body.innerHTML='<div style="min-height:100vh;display:grid;place-items:center;padding:30px;font-family:Inter,system-ui;background:#f5eee3"><div style="max-width:520px;background:#fff;padding:30px;border-radius:18px;border:1px solid #e4d9c9"><h2 style="font-family:Georgia,serif">Books Lite access not found</h2><p>Your secure login is not currently linked to a paid Books Lite client account. Please contact The Resident Bookkeeper.</p><button class="btn" onclick="window.location.href=\'/platform\'">Return to Team / Client login</button></div></div>';return}
-  const {data:paid}=await sb.from('invoices').select('id').eq('client_id',c.id).eq('status','Paid').limit(1);
-  if(!paid?.length){document.body.innerHTML='<div style="min-height:100vh;display:grid;place-items:center;padding:30px;font-family:Inter,system-ui;background:#f5eee3"><div style="max-width:520px;background:#fff;padding:30px;border-radius:18px;border:1px solid #e4d9c9"><h2 style="font-family:Georgia,serif">Books Lite payment not confirmed</h2><p>Books Lite access becomes available after Finance confirms payment and the invoice is marked Paid.</p><button class="btn" onclick="window.location.href=\'/platform\'">Return to login</button></div></div>';return}
-  client=c;
-  const {data:b,error:be}=await sb.from('books_lite_businesses').select('*').eq('owner_id',user.id).maybeSingle();
-  if(be||!b){document.body.innerHTML='<div style="min-height:100vh;display:grid;place-items:center;padding:30px;font-family:Inter,system-ui;background:#f5eee3"><div style="max-width:520px;background:#fff;padding:30px;border-radius:18px;border:1px solid #e4d9c9"><h2 style="font-family:Georgia,serif">Preparing your Books Lite workspace</h2><p>Your client access is active, but the dedicated Books Lite workspace has not finished provisioning. Please contact The Resident Bookkeeper.</p><button class="btn" onclick="window.location.href=\'/platform\'">Return to login</button></div></div>';return}
-  business=b; await refresh();
+  const s=await sb.auth.getSession();session=s.data.session;
+  if(!session)return location.replace('/platform');
+  const b=await sb.from('books_lite_businesses').select('*').eq('owner_id',session.user.id).maybeSingle();
+  if(!b.data){$('gate').innerHTML='<h2>No Books Lite workspace yet</h2><p class="muted">Your account is not linked to Books Lite. If you have paid, please <a href="https://wa.me/2348026000078">message us on WhatsApp</a> and we will sort it out.</p><p><a href="/platform">Back to sign in</a></p>';return}
+  biz=b.data;$('bizName').textContent=biz.business_name;$('who').textContent=session.user.email;
+  const h=new Date().getHours();$('greet').textContent=(h<12?'Good morning':h<17?'Good afternoon':'Good evening')+'.';
+  const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);$('month').value=d.toISOString().slice(0,7);$('month').max=new Date().toISOString().slice(0,7);
+  $('gate').classList.add('hidden');$('app').classList.remove('hidden');
+  await loadAll();
 }
+
+async function loadAll(){
+  const [a,u,r]=await Promise.all([
+    sb.from('books_lite_bank_accounts').select('*').eq('business_id',biz.id).eq('active',true).order('created_at'),
+    sb.from('books_lite_statement_uploads').select('id,file_name,period_start,status,uploaded_at,transaction_count,bank_account_id').eq('business_id',biz.id).order('uploaded_at',{ascending:false}).limit(24),
+    sb.from('books_lite_reports').select('id,period_start,period_end,summary,pdf_path,xlsx_path,generated_at').eq('business_id',biz.id).eq('status','ready').order('period_start',{ascending:false})
+  ]);
+  accts=a.data||[];
+  $('acct').innerHTML=accts.map(x=>'<option value="'+x.id+'">'+esc(x.bank_name)+(x.account_last4?' ••••'+esc(x.account_last4):'')+'</option>').join('')+(accts.length<(biz.max_bank_accounts||2)?'<option value="new">+ Add a bank account</option>':'');
+  toggleNew();
+  const names=Object.fromEntries(accts.map(x=>[x.id,x.bank_name]));
+  const ups=u.data||[];
+  $('ups').innerHTML=ups.map(x=>{const s=STATUS[x.status]||['work',x.status];return '<div class="item"><div><b>'+esc(monthName(x.period_start))+'</b><span class="small muted">'+esc(names[x.bank_account_id]||'')+' · '+esc(x.file_name)+'</span></div><span class="pill '+s[0]+'">'+(s[2]?'<span class="spin"></span>':'')+esc(s[1])+'</span></div>'}).join('')||'<div class="empty">No statements yet. Send your first one to get started.</div>';
+  const reps=r.data||[];
+  $('reps').innerHTML=reps.map(x=>{const s=x.summary||{},c=s.cash||{};return '<div class="rep"><div><h3>'+esc(monthName(x.period_start))+'</h3><span class="small muted">'+(s.transaction_count||0)+' transactions</span></div><div class="figs"><div class="fig"><span>Money in</span><b>'+money(c.money_in)+'</b></div><div class="fig"><span>Money out</span><b>'+money(c.money_out)+'</b></div><div class="fig"><span>Net profit</span><b class="'+(s.net_profit<0?'neg':'')+'">'+money(s.net_profit)+'</b></div></div><div class="acts"><button class="red" data-open="'+esc(x.pdf_path)+'">View report</button><button class="ghost" data-dl="'+esc(x.pdf_path)+'">PDF</button><button class="ghost" data-dl="'+esc(x.xlsx_path)+'">Excel</button></div></div>'}).join('')||'<div class="empty">Your first report will appear here once Nora has finished.</div>';
+  document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openFile(b.dataset.open,false,b));
+  document.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>openFile(b.dataset.dl,true,b));
+  // usage this month
+  const m=new Date().toISOString().slice(0,7);
+  const {count}=await sb.from('books_lite_transactions').select('id',{count:'exact',head:true}).eq('business_id',biz.id).gte('transaction_date',m+'-01');
+  const lim=biz.max_monthly_transactions||100,n=count||0;$('usageText').textContent='This month: '+n+' of '+lim+' transactions';$('usageBar').style.width=Math.min(100,n/lim*100)+'%';
+  clearTimeout(poll);if(ups.some(x=>STATUS[x.status]?.[2]))poll=setTimeout(loadAll,12000);
+}
+
+async function openFile(path,download,btn){
+  btn.disabled=true;
+  const w=download?null:window.open('','_blank');
+  try{const j=await call({action:'sign',path,download});if(w)w.location=j.url;else location.href=j.url}
+  catch(e){if(w)w.close();alert(e.message)}finally{btn.disabled=false}
+}
+
+function toggleNew(){$('newAcct').classList.toggle('hidden',$('acct').value!=='new'&&accts.length>0);if(!accts.length&&$('acct').value!=='new')$('acct').value='new'}
+$('acct').onchange=toggleNew;
+$('file').onchange=()=>{$('fileLabel').textContent=$('file').files[0]?.name||'Choose your statement file'};
+['dragover','dragenter'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();$('drop').classList.add('on')}));
+['dragleave','drop'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();$('drop').classList.remove('on')}));
+$('drop').addEventListener('drop',e=>{if(e.dataTransfer.files[0]){$('file').files=e.dataTransfer.files;$('file').onchange()}});
+
+function msg(cls,t){$('upMsg').className='msg '+cls;$('upMsg').textContent=t}
+$('upForm').onsubmit=async e=>{
+  e.preventDefault();const f=$('file').files[0],mo=$('month').value;
+  if(!mo)return msg('err','Choose the month this statement covers.');
+  if(!f)return msg('err','Choose your statement file first.');
+  if(f.size>15*1024*1024)return msg('err','That file is over 15 MB. Please send a smaller copy.');
+  if(!/\.(pdf|csv|xlsx?|png|jpe?g)$/i.test(f.name))return msg('err','Please send a PDF, Excel, CSV or photo of your statement.');
+  $('upBtn').disabled=true;msg('ok','Uploading…');
+  try{
+    let acct=$('acct').value;
+    if(acct==='new'||!acct){
+      const bn=$('bankName').value.trim(),l4=$('last4').value.trim();
+      if(!bn)throw Error('Enter the bank name.');if(l4&&!/^\d{4}$/.test(l4))throw Error('Last 4 digits should be 4 numbers.');
+      const r=await sb.from('books_lite_bank_accounts').insert({business_id:biz.id,owner_id:session.user.id,bank_name:bn,account_last4:l4||null,currency_code:cur()}).select('id').single();
+      if(r.error)throw Error(r.error.message.includes('duplicate')?'That bank account is already added.':r.error.message);acct=r.data.id;
+    }
+    const start=mo+'-01',end=new Date(Date.UTC(+mo.slice(0,4),+mo.slice(5,7),0)).toISOString().slice(0,10);
+    const safe=f.name.replace(/[^A-Za-z0-9._-]/g,'_'),path=biz.id+'/statements/'+mo+'/'+Date.now()+'-'+safe;
+    const up=await sb.storage.from('books-lite').upload(path,f,{upsert:false,contentType:f.type||undefined});if(up.error)throw Error('Upload failed: '+up.error.message);
+    const row=await sb.from('books_lite_statement_uploads').insert({business_id:biz.id,bank_account_id:acct,owner_id:session.user.id,period_start:start,period_end:end,file_name:safe,storage_path:path,file_type:safe.split('.').pop(),status:'uploaded'}).select('id').single();
+    if(row.error)throw Error(row.error.message);
+    await call({action:'process',upload_id:row.data.id}).catch(()=>{}); // Nora's scheduled sweep picks it up if this call fails
+    msg('ok','Sent. Nora is working on it. We will email you when your reports are ready.');
+    $('upForm').reset();$('fileLabel').textContent='Choose your statement file';$('month').value=mo;await loadAll();
+  }catch(err){msg('err',err.message)}finally{$('upBtn').disabled=false}
+};
+$('out').onclick=async()=>{await sb.auth.signOut();location.replace('/platform')};
 boot();
 </script>
-</body></html>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Workspace | The Resident Bookkeeper</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/trb-logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{--ink:#14110E;--paper:#F5EBD6;--card:#FBF6EA;--mist:#EBDFC6;--line:#D9CCB0;--mute:#5A5247;--red:#B8112B;--red-d:#930D22;--gold:#A67C1E;--ok:#2F6B45}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 "Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:var(--red)}
+.top{background:var(--ink);color:#fff;border-bottom:3px solid var(--red)}
+.top .in{max-width:1100px;margin:auto;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none}.brand img{width:40px;height:40px;border-radius:50%}
+.brand b{display:block;font-size:14px}.brand small{color:#E8C76A;font-size:10px;letter-spacing:.14em;text-transform:uppercase}
+.who{display:flex;gap:12px;align-items:center;font-size:13px;color:#d8cfc2}
+button,.btn{font:inherit;font-weight:700;border-radius:10px;border:1px solid var(--ink);background:var(--ink);color:#fff;padding:10px 14px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+button.red{background:var(--red);border-color:var(--red)}button.red:hover{background:var(--red-d)}
+button.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.top button.ghost{color:#fff;border-color:#4a433d}
+button.sm{padding:7px 10px;font-size:13px}
+button:disabled{opacity:.55;cursor:wait}
+.tabs{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.tabs .in{max-width:1100px;margin:auto;padding:0 12px;display:flex;gap:4px;overflow-x:auto}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;border-radius:0;color:var(--mute);padding:14px 12px;white-space:nowrap}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--red)}
+.tabs .count{background:var(--red);color:#fff;border-radius:99px;font-size:11px;padding:1px 7px;margin-left:4px}
+main{max-width:1100px;margin:auto;padding:26px 20px 70px}
+h1{font-size:clamp(26px,4vw,38px);line-height:1.1;margin:0 0 6px;letter-spacing:-.02em}
+h2{font-size:20px;margin:4px 0 6px}
+.eyebrow{color:var(--red);font-weight:800;font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.muted{color:var(--mute)}.small{font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 14px 34px rgba(20,17,14,.06);margin-top:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;cursor:pointer;text-align:left;color:var(--ink);display:block;font-weight:400}
+.stat b{display:block;font-size:28px}.stat span{color:var(--mute);font-size:13px}
+.stat:hover{border-color:var(--gold)}
+.item{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}.item b{display:block}
+.pill{display:inline-block;font-size:11px;font-weight:800;padding:5px 9px;border-radius:99px;white-space:nowrap}
+.p-warn{background:#fff2d6;color:#7a5a12}.p-ok{background:#e3f0e6;color:var(--ok)}.p-info{background:#efe7f6;color:#5b3d7a}.p-bad{background:#fbeceb;color:var(--red-d)}.p-mute{background:var(--mist);color:var(--mute)}
+label{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px}
+input,select,textarea{width:100%;font:inherit;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+textarea{min-height:90px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);outline-offset:1px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.msg{margin-top:12px;padding:11px 13px;border-radius:10px;font-size:14px}.msg.err{background:#fbeceb;color:var(--red-d)}.msg.ok{background:#eaf3ec;color:var(--ok)}
+.empty{padding:24px;text-align:center;color:var(--mute);background:#fff;border:1px dashed var(--line);border-radius:12px}
+.files{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.note{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:10px}
+.note.team{border-left:4px solid var(--gold)}.note.client{border-left:4px solid var(--red)}
+.note .meta{font-size:12px;color:var(--mute);margin-bottom:4px}
+.rep-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:start}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.steps span{font-size:12px;padding:4px 9px;border-radius:99px;background:var(--mist);color:var(--mute)}.steps span.on{background:var(--ink);color:#fff}
+.view{display:none}.view.on{display:block}
+.hidden{display:none!important}
+.gate{max-width:520px;margin:12vh auto;text-align:center}
+.doc{background:#fff;border:1px solid var(--line);border-radius:12px;padding:28px;max-width:760px;margin:auto}
+.doc table{width:100%;border-collapse:collapse;margin-top:14px}.doc th,.doc td{padding:9px 6px;border-bottom:1px solid var(--line);text-align:left}.doc td.r,.doc th.r{text-align:right}
+.modal{position:fixed;inset:0;background:rgba(20,17,14,.55);display:flex;align-items:flex-start;justify-content:center;padding:30px 14px;overflow:auto;z-index:20}
+.stamp{display:inline-block;border:3px solid var(--ok);color:var(--ok);font-weight:800;letter-spacing:.2em;padding:4px 12px;border-radius:8px;transform:rotate(-6deg)}
+@media print{body{background:#fff}.top,.tabs,main,.noprint{display:none!important}.modal{position:static;background:none;padding:0}.doc{border:0}}
+@media(max-width:760px){.grid3{grid-template-columns:1fr}.row3{grid-template-columns:1fr}.item{flex-direction:column;align-items:flex-start}.who span{display:none}}
+</style>
+<style>.wk-note{margin-top:8px;padding:8px 10px;border-left:3px solid var(--gold);background:#faf6ee;font-size:14px}.wk-note.c{border-left-color:var(--red)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:700px){.grid2,.grid3{grid-template-columns:1fr}}
+#detail{scroll-margin-top:70px}.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;opacity:0;transition:.2s;pointer-events:none}.toast.show{opacity:1}</style>
+</head>
+<body>
+<header class="top"><div class="in"><a class="brand" href="/workspace"><img src="/assets/trb-icon-1024.png" alt=""><span><b>The Resident Bookkeeper</b><small>Team workspace</small></span></a><div class="who"><span id="who"></span><button class="ghost sm" id="out">Sign out</button></div></div></header>
+<nav class="tabs"><div class="in"><button class="on" data-t="clients">My clients</button><button data-t="earn">My earnings</button><button data-t="guide">How we work</button></div></nav>
+<main>
+<section id="t-clients"><div class="eyebrow">Your assigned clients</div><h1 id="hi">Welcome</h1><p class="muted">Prepare each month's reports here and submit them to Nancy. Clients only see a report after Nancy reviews and sends it.</p><div id="cards" class="grid3"></div><div id="detail"></div></section>
+<section id="t-earn" hidden><div class="eyebrow">Your share</div><h1>My earnings</h1><p class="muted">You earn your share of each client's fee once the client has paid and your reports passed review. Payments made to you show here.</p><div class="card"><h2>Clients you look after</h2><div id="mine"></div></div><div class="card"><h2>Payments received</h2><div id="paid"></div></div></section>
+<section id="t-guide" hidden><div class="eyebrow">The TRB way</div><h1>How we work</h1><div class="card"><div class="item"><span><b>Reports ready for review</b><span class="muted">Within 7 working days of complete records</span></span></div><div class="item"><span><b>Reply to a client</b><span class="muted">Within 1 working day, only through this portal, TRB email or TRB WhatsApp</span></span></div><div class="item"><span><b>Fix review comments</b><span class="muted">Within 3 working days</span></span></div><div class="item"><span><b>File names</b><span class="muted">ClientName_Report_YYYY-MM_v1, for example AdaFoods_PL_2026-10_v1</span></span></div><div class="item"><span><b>Before you submit</b><span class="muted">Every account reconciled to the statement · no uncategorised items · suspense cleared or explained · tax schedule tied to the ledger · notes to the client written</span></span></div><div class="item"><span><b>Client data</b><span class="muted">Never download to your phone or personal storage, never paste into AI tools, report any loss to Nancy within 24 hours</span></span></div></div></section>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const U='https://njhohxhtqkktktngjflb.supabase.co',K='sb_publishable_KqlXsF07Jgj-dS8P382reQ_-ShRBI7O',sb=supabase.createClient(U,K,{auth:{persistSession:true,autoRefreshToken:true}}),$=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toast=t=>{$('toast').textContent=t;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),2000)};
+const mName=d=>d?new Date(d+'T00:00:00').toLocaleString('en',{month:'long',year:'numeric'}):'';
+const day=d=>d?new Date(d).toLocaleDateString('en',{day:'numeric',month:'short',year:'numeric'}):'';
+const kindOf=n=>/\.pdf$/i.test(n)?'pdf':/\.(xlsx?|xlsm)$/i.test(n)?'excel':/\.csv$/i.test(n)?'csv':'other';
+const ST={preparing:['Preparing','p-mute'],for_review:['With client','p-info'],client_reviewed:['Client reviewed','p-warn'],final:['Final','p-ok']};
+const CAT={bank_statement:'Bank statement',requested_document:'Requested document',receipt_or_invoice:'Receipts / invoices',other:'Other'};
+const fmtCur=(v,c)=>new Intl.NumberFormat(c==='NGN'||!c?'en-NG':'en',{style:'currency',currency:c||'NGN',maximumFractionDigits:2}).format(Number(v||0));
+let ME=null,CL=[],AS=[];
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-t]').forEach(x=>x.classList.toggle('on',x===b));['clients','earn','guide'].forEach(t=>$('t-'+t).hidden=t!==b.dataset.t);if(b.dataset.t==='earn')earn()});
+$('out').onclick=async()=>{await sb.auth.signOut();location.replace('/platform')};
+async function signed(p){const r=await sb.storage.from('client-files').createSignedUrl(p,300);if(r.error)throw r.error;return r.data.signedUrl}
+async function boot(){
+ const {data:{session}}=await sb.auth.getSession();if(!session)return location.replace('/platform');
+ const e=await sb.from('employees').select('*').eq('portal_user_id',session.user.id).eq('status','Active').maybeSingle();
+ if(!e.data)return location.replace('/platform');if(e.data.access_level==='admin')return location.replace('/platform');
+ ME=e.data;$('who').textContent=ME.name;$('hi').textContent='Welcome, '+ME.name.split(' ')[0];
+ const [a,c]=await Promise.all([sb.from('client_assignments').select('*'),sb.from('clients').select('id,name,contact_name,country,product_name,business_type')]);
+ AS=a.data||[];CL=c.data||[];await cards();
+}
+async function cards(){
+ if(!CL.length){$('cards').innerHTML='<div class="card" style="grid-column:1/-1"><p class="muted" style="margin:0">No clients assigned yet. Nancy will assign your first client after your practice month.</p></div>';return}
+ const ids=CL.map(c=>c.id);const [rq,rp]=await Promise.all([sb.from('client_document_requests').select('client_id,status').in('client_id',ids),sb.from('client_reports').select('client_id,status,submitted_at').in('client_id',ids)]);
+ $('cards').innerHTML=CL.map(c=>{const up=(rq.data||[]).filter(q=>q.client_id===c.id&&q.status==='uploaded').length,open=(rq.data||[]).filter(q=>q.client_id===c.id&&q.status==='requested').length,prep=(rp.data||[]).filter(r=>r.client_id===c.id&&r.status==='preparing'&&!r.submitted_at).length;
+  return '<button class="stat" data-c="'+c.id+'"><b style="font-size:20px">'+esc(c.name)+'</b><span>'+esc([c.product_name,c.country].filter(Boolean).join(' · '))+'</span><span style="display:block;margin-top:8px">'+(up?'<span class="pill p-warn">'+up+' new upload'+(up>1?'s':'')+'</span> ':'')+(open?'<span class="pill p-mute">'+open+' awaited</span> ':'')+(prep?'<span class="pill p-info">'+prep+' to finish</span>':'')+'</span></button>'}).join('');
+ document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>detail(b.dataset.c));
+}
+async function detail(id){
+ const box=$('detail'),c=CL.find(x=>x.id===id);box.innerHTML='<div class="card">Loading…</div>';
+ const [rq,fl,rp,rf,nt]=await Promise.all([sb.from('client_document_requests').select('*').eq('client_id',id).order('created_at',{ascending:false}),sb.from('client_files').select('*').eq('client_id',id).order('created_at',{ascending:false}).limit(100),sb.from('client_reports').select('*').eq('client_id',id).order('created_at',{ascending:false}),sb.from('client_report_files').select('*').eq('client_id',id).order('created_at'),sb.from('client_report_notes').select('*').eq('client_id',id).order('created_at')]);
+ const RF=rf.data||[],NT=nt.data||[];
+ const reps=(rp.data||[]).map(r=>{const files=RF.filter(f=>f.report_id===r.id),v=Math.max(0,...files.map(f=>f.version)),notes=NT.filter(n=>n.report_id===r.id),s=ST[r.status]||[r.status,'p-mute'],edit=r.status==='preparing'&&!r.submitted_at;
+  return '<div class="item" style="display:block"><b>'+esc(r.title)+'</b> <span class="pill '+s[1]+'">'+s[0]+'</span>'+(r.status==='preparing'&&r.submitted_at?' <span class="pill p-warn">Submitted '+day(r.submitted_at)+': with Nancy</span>':'')+'<div class="muted small">'+mName(r.period_start)+(r.summary?' · '+esc(r.summary):'')+'</div>'
+  +'<div class="row" style="margin-top:6px">'+files.map(f=>'<button class="ghost sm" data-f="'+esc(f.storage_path)+'">v'+f.version+' '+esc(f.file_name)+'</button>').join('')+'</div>'
+  +notes.map(n=>'<div class="wk-note'+(n.author_type==='client'?' c':'')+'"><span class="muted small">'+(n.author_type==='client'?'CLIENT':'TRB')+' · '+esc(n.note_type)+' · '+day(n.created_at)+'</span><div>'+esc(n.body)+'</div></div>').join('')
+  +(edit?'<div class="row" style="margin-top:10px"><input type="file" multiple data-rf="'+r.id+'" data-v="'+(v+1)+'" style="max-width:260px"><button class="ghost sm" data-up="'+r.id+'">Attach files</button><button class="red sm" data-sub="'+r.id+'"'+(files.length?'':' disabled')+'>Submit to Nancy for review</button></div>':'')
+  +(r.status==='preparing'&&r.submitted_at?'<div class="row" style="margin-top:8px"><button class="ghost sm" data-unsub="'+r.id+'">Take back to fix something</button></div>':'')
+  +(r.status!=='preparing'?'<div class="row" style="margin-top:8px"><input placeholder="Reply to the client…" data-nt="'+r.id+'" style="flex:1;min-width:200px"><button class="ghost sm" data-ns="'+r.id+'">Reply</button></div>':'')+'</div>'}).join('')||'<p class="muted">No reports yet.</p>';
+ box.innerHTML='<div class="card"><div class="row" style="justify-content:space-between"><div><div class="eyebrow">Client</div><h2>'+esc(c.name)+'</h2><p class="muted small" style="margin:0">'+esc([c.contact_name,c.business_type,c.product_name,c.country].filter(Boolean).join(' · '))+'</p></div><button class="ghost sm" onclick="document.getElementById(\'detail\').innerHTML=\'\'">Close</button></div></div>'
+ +'<div class="card"><h2>Reports</h2><div class="grid2"><div><label>Title</label><input id="nT" placeholder="e.g. September 2026 management accounts"></div><div><label>Month</label><input id="nM" type="month"></div></div><label>Short summary for the client (optional)</label><input id="nS"><div style="margin-top:12px"><button class="red" id="nB">Create report</button></div>'+reps+'</div>'
+ +'<div class="card"><h2>Ask the client for documents</h2><div class="grid2"><div><label>What do you need?</label><input id="qT" placeholder="e.g. October bank statement"></div><div><label>Due date</label><input id="qD" type="date"></div></div><label>Details (optional)</label><input id="qX"><div style="margin-top:12px"><button class="red" id="qB">Send request</button></div>'
+ +((rq.data||[]).map(q=>'<div class="item"><span><b>'+esc(q.title)+'</b><span class="muted small">'+(q.due_date?'due '+esc(q.due_date):'')+(q.details?' · '+esc(q.details):'')+'</span></span><span class="row"><span class="pill '+(q.status==='uploaded'?'p-warn':q.status==='accepted'?'p-ok':'p-mute')+'">'+esc(q.status)+'</span>'+(q.status==='uploaded'?'<button class="ghost sm" data-qa="'+q.id+'">Accept</button><button class="ghost sm" data-qr="'+q.id+'">Ask again</button>':'')+'</span></div>').join(''))+'</div>'
+ +'<div class="card"><h2>Files from the client</h2>'+((fl.data||[]).map(f=>'<div class="item"><span><b>'+esc(f.file_name)+'</b><span class="muted small">'+esc(CAT[f.category]||f.category)+(f.period_start?' · '+mName(f.period_start):'')+' · '+day(f.created_at)+(f.note?' · '+esc(f.note):'')+'</span></span><button class="ghost sm" data-f="'+esc(f.storage_path)+'">Open</button></div>').join('')||'<p class="muted">Nothing uploaded yet.</p>')+'</div>';
+ box.scrollIntoView({behavior:'smooth'});
+ const again=()=>{detail(id);cards()},err=e=>toast(e.message||String(e));
+ box.querySelectorAll('[data-f]').forEach(b=>b.onclick=async()=>{const w=window.open('','_blank');try{w.location=await signed(b.dataset.f)}catch(e){w.close();err(e)}});
+ $('nB').onclick=async()=>{const t=$('nT').value.trim(),m=$('nM').value;if(!t)return toast('Give the report a title');const r=await sb.from('client_reports').insert({client_id:id,owner_id:ME.owner_id,title:t,period_type:'monthly',period_start:m?m+'-01':null,period_end:m?new Date(Date.UTC(+m.slice(0,4),+m.slice(5,7),0)).toISOString().slice(0,10):null,summary:$('nS').value.trim()||null});if(r.error)return err(r.error);toast('Report created. Attach the files next.');again()};
+ box.querySelectorAll('[data-up]').forEach(b=>b.onclick=async()=>{const rid=b.dataset.up,inp=box.querySelector('[data-rf="'+rid+'"]'),files=[...inp.files];if(!files.length)return toast('Choose the files first');b.disabled=true;try{for(const f of files){const safe=f.name.replace(/[^A-Za-z0-9._-]/g,'_'),path=id+'/reports/'+rid+'/v'+inp.dataset.v+'-'+Date.now()+'-'+safe;const u=await sb.storage.from('client-files').upload(path,f,{upsert:false,contentType:f.type||undefined});if(u.error)throw u.error;const r=await sb.from('client_report_files').insert({report_id:rid,client_id:id,file_name:f.name,storage_path:path,kind:kindOf(f.name),version:+inp.dataset.v});if(r.error)throw r.error}toast('Files attached');again()}catch(e){err(e);b.disabled=false}});
+ box.querySelectorAll('[data-sub]').forEach(b=>b.onclick=async()=>{if(!confirm('Have you finished the month-end checklist? Nancy will review before the client sees it.'))return;const r=await sb.from('client_reports').update({submitted_at:new Date().toISOString(),submitted_by:ME.portal_user_id,updated_at:new Date().toISOString()}).eq('id',b.dataset.sub);if(r.error)return err(r.error);toast('Submitted to Nancy');again()});
+ box.querySelectorAll('[data-unsub]').forEach(b=>b.onclick=async()=>{const r=await sb.from('client_reports').update({submitted_at:null,updated_at:new Date().toISOString()}).eq('id',b.dataset.unsub);if(r.error)return err(r.error);again()});
+ box.querySelectorAll('[data-ns]').forEach(b=>b.onclick=async()=>{const rid=b.dataset.ns,body=box.querySelector('[data-nt="'+rid+'"]').value.trim();if(!body)return;const r=await sb.from('client_report_notes').insert({report_id:rid,client_id:id,author_type:'team',note_type:'reply',body});if(r.error)return err(r.error);again()});
+ $('qB').onclick=async()=>{const t=$('qT').value.trim();if(t.length<2)return toast('Say what you need');const r=await sb.from('client_document_requests').insert({client_id:id,owner_id:ME.owner_id,title:t,details:$('qX').value.trim()||null,due_date:$('qD').value||null});if(r.error)return err(r.error);toast('Request sent to the client portal');again()};
+ const setQ=(q,st)=>sb.from('client_document_requests').update({status:st,updated_at:new Date().toISOString()}).eq('id',q).then(r=>r.error?err(r.error):again());
+ box.querySelectorAll('[data-qa]').forEach(b=>b.onclick=()=>setQ(b.dataset.qa,'accepted'));box.querySelectorAll('[data-qr]').forEach(b=>b.onclick=()=>setQ(b.dataset.qr,'requested'));
+}
+async function earn(){
+ const today=new Date().toISOString().slice(0,10),live=AS.filter(a=>a.start_date<=today&&(!a.end_date||a.end_date>=today));
+ $('mine').innerHTML=live.map(a=>'<div class="item"><span><b>'+esc(CL.find(c=>c.id===a.client_id)?.name||'Client')+'</b><span class="muted small">'+esc(a.role)+' since '+day(a.start_date)+'</span></span><span class="pill p-info">'+Number(a.share_pct)+'% of the fee</span></div>').join('')||'<p class="muted">No clients yet.</p>';
+ const p=await sb.from('staff_payouts').select('*').order('period',{ascending:false});const P=p.data||[];
+ const byM={};P.forEach(x=>(byM[x.period]=byM[x.period]||[]).push(x));
+ $('paid').innerHTML=Object.entries(byM).map(([m,xs])=>{const t={};xs.forEach(x=>t[x.currency]=(t[x.currency]||0)+Number(x.amount));return '<div class="item" style="display:block"><b>'+mName(m)+': '+Object.entries(t).map(([c,v])=>fmtCur(v,c)).join(' + ')+'</b>'+xs.map(x=>'<div class="muted small">'+esc(CL.find(c=>c.id===x.client_id)?.name||'Client')+' · '+fmtCur(x.fee_amount,x.currency)+' × '+Number(x.share_pct)+'% = '+fmtCur(x.amount,x.currency)+(x.reference?' · ref '+esc(x.reference):'')+' · paid '+day(x.paid_at)+'</div>').join('')+'</div>'}).join('')||'<p class="muted">No payments yet.</p>';
+}
+boot();
+</script>
+</body>
+</html>

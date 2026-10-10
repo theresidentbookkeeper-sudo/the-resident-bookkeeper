@@ -15,6 +15,12 @@
   status = 200
 
 [[redirects]]
+  from = "/workspace"
+  to = "/workspace.html"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/platform"
   to = "/index.html"
   status = 200
@@ -64,3 +70,9 @@
   from = "/growth-command-center"
   to = "/growth-command-center.html"
   status = 200
+
+[[redirects]]
+  from = "/drafts/*"
+  to = "/"
+  status = 302
+  force = true
