@@ -9,7 +9,7 @@
 <main class="wrap"><div class="hero"><div><h1>Sales command centre</h1><p>Website enquiries become leads, follow-ups and quotes in one shared workspace.</p></div><button class="btn primary" id="refresh">Refresh</button></div>
 <div class="grid" id="stats"></div>
 <section id="leads"><div class="panel"><h2>Lead inbox</h2><div id="leadTable"></div></div></section>
-<section id="quotes"><div class="panel"><h2>Package & quote flow</h2><div class="quote"><div class="field"><label>Lead</label><select id="quoteLead"></select></div><div class="field"><label>Package</label><select id="package"><option>Starter</option><option>Growth</option><option>Business</option><option>Catch-up & Clean-up</option><option>Individual Services</option><option>TRB Books Lite</option></select></div><div class="field"><label>Scope / deliverables</label><textarea id="scope" placeholder="e.g. 3 months catch-up, bank reconciliation, monthly reports"></textarea></div><div class="field"><label>Quote amount</label><input id="amount" type="number" min="0" placeholder="Enter amount"></div><div class="field full actions"><button class="btn primary" id="makeQuote">Create quote</button><button class="btn" id="copyQuote">Copy latest quote message</button></div></div><div id="quoteList"></div></div></section>
+<section id="quotes"><div class="panel"><h2>Package & quote flow</h2><div class="quote"><div class="field"><label>Lead</label><select id="quoteLead"></select></div><div class="field"><label>Country</label><select id="qCountry"><option value="NG">Nigeria (₦)</option><option value="US">United States ($)</option><option value="UK">United Kingdom (£)</option><option value="CA">Canada (C$)</option><option value="AU">Australia (A$)</option></select></div><div class="field"><label>Package</label><select id="package"></select></div><div class="field" id="qMonthsBox" style="display:none"><label>Months of records to catch up</label><input id="qMonths" type="number" min="1" value="3"></div><div class="field full"><label>Scope / deliverables</label><textarea id="scope"></textarea></div><div class="field"><label>Quote amount (<span id="qCur">NGN</span>)</label><input id="amount" type="number" min="0" placeholder="Enter amount"><div class="small" id="qHint"></div></div><div class="field full actions"><button class="btn primary" id="makeQuote">Create quote</button><button class="btn" id="copyQuote">Copy latest quote message</button></div></div><div id="quoteList"></div></div></section>
 <section id="followups"><div class="panel"><h2>Follow-up queue</h2><p class="small">New website leads receive a 0/2/5/10-day WhatsApp follow-up sequence.</p><div id="followupTable"></div></div></section>
 <section><div class="panel"><h2>Connection to your existing platform</h2><div class="grid"><div class="stat"><b>Leads</b><span>Capture, source, service and stage.</span></div><div class="stat"><b>Customers</b><span>Qualified leads are ready for customer conversion.</span></div><div class="stat"><b>Sales</b><span>Package, scope, quote and deal status.</span></div><div class="stat"><b>Finance + Nani</b><span>Won-deal context is kept in the shared sales state for the next integration layer.</span></div></div></div></section>
 </main>
@@ -28,7 +28,7 @@ async function loadState(){
  if(!session){location.href='/';return false}
  const [leads,quotes,followups]=await Promise.all([
    sb.from('leads').select('id,name,business_type,phone,email,source,notes,stage,converted,created_at').order('created_at',{ascending:false}).limit(100),
-   sb.from('sales_quotes').select('id,lead_id,package,scope,amount,status,created_at,updated_at').order('created_at',{ascending:false}).limit(100),
+   sb.from('sales_quotes').select('id,lead_id,package,scope,amount,currency,country,status,created_at,updated_at').order('created_at',{ascending:false}).limit(100),
    sb.from('sales_followups').select('id,lead_id,title,message,channel,due_at,status,sent_at').order('due_at',{ascending:true}).limit(200)
  ]);
  if(leads.error) throw leads.error;
@@ -65,18 +65,46 @@ async function sendFollow(id){
  const l=state.leads.find(x=>x.id===f.lead_id)||{};const n=leadPhone(l);if(!n)return alert('This lead has no WhatsApp phone number recorded.');
  window.open(waUrl(n,f.message||''),'_blank');
 }
+
+/* ---------- Current price list (matches the website, Oct 2026) ---------- */
+const PRICES={
+ NG:{cur:'NGN',sym:'₦',lite:100000,ess:150000,gro:300000,pre:550000,cu:100000,cl:250000},
+ US:{cur:'USD',sym:'$',ess:299,gro:499,pre:849,cu:199,cl:499},
+ UK:{cur:'GBP',sym:'£',ess:229,gro:399,pre:679,cu:159,cl:399},
+ CA:{cur:'CAD',sym:'C$',ess:399,gro:679,pre:1149,cu:269,cl:679},
+ AU:{cur:'AUD',sym:'A$',ess:449,gro:749,pre:1279,cu:299,cl:749}};
+const COUNTRY_NAME={NG:'Nigeria',US:'United States',UK:'United Kingdom',CA:'Canada',AU:'Australia'};
+const TAXLINE={NG:'VAT and WHT schedules',US:'Sales tax report',UK:'VAT-ready records',CA:'GST/HST report',AU:'GST report for your BAS'};
+const ESS=c=>'Up to 150 transactions a month; up to 2 bank or card accounts; categorisation and bank reconciliation; monthly profit and loss and balance sheet; '+TAXLINE[c]+'.';
+const PKGS=[
+ {k:'lite',name:'TRB Books Lite',only:'NG',scope:()=>'Up to 2 business bank accounts and 100 transactions a month. You upload your bank statements each month; transactions categorised, accounts reconciled and reports sent to you. Billed yearly.',hint:'per year'},
+ {k:'ess',name:'Essentials',scope:c=>ESS(c),hint:'per month'},
+ {k:'gro',name:'Growth',scope:c=>'Up to 400 transactions a month; up to 5 bank or card accounts; everything in Essentials ('+TAXLINE[c]+'); invoices and bills managed; payroll records for up to 10 staff; monthly review call.',hint:'per month'},
+ {k:'pre',name:'Premium',scope:c=>'Up to 800 transactions a month; up to 10 bank or card accounts; everything in Growth; stock and cost of sales; payroll records for up to 30 staff; year-end accounts pack.',hint:'per month'},
+ {k:'cu',name:'Catch-up bookkeeping',scope:()=>'Missing months entered, reconciled and closed, so you start from a clean position.',hint:'per month of records'},
+ {k:'cl',name:'Clean-up bookkeeping',scope:()=>'Existing books reviewed and corrected: misclassified, duplicated and unreconciled items fixed. Final price confirmed after review.',hint:'starting price'},
+ {k:'custom',name:'Custom (over 800 transactions or 10 accounts)',scope:()=>'Scope and deliverables built around your records.',hint:'agree the amount with the client'}];
+function qPkgs(){const c=$('qCountry').value,cur=$('package').value;$('package').innerHTML=PKGS.filter(p=>!p.only||p.only===c).map(p=>'<option value="'+p.k+'">'+esc(p.name)+'</option>').join('');if([...$('package').options].some(o=>o.value===cur))$('package').value=cur;qFill()}
+function qFill(){const c=$('qCountry').value,P=PRICES[c],p=PKGS.find(x=>x.k===$('package').value)||PKGS[1],m=Math.max(1,Number($('qMonths').value||1));
+ $('qMonthsBox').style.display=p.k==='cu'?'':'none';$('qCur').textContent=P.cur;
+ const unit=P[p.k];$('amount').value=unit==null?'':(p.k==='cu'?unit*m:unit);
+ $('scope').value=p.k==='cu'?m+' month'+(m>1?'s':'')+' of records. '+p.scope(c):p.scope(c);
+ $('qHint').textContent=unit==null?p.hint:P.sym+Number(unit).toLocaleString()+' '+p.hint+(p.k==='cu'?' × '+m:'')}
+const qMoney=q=>{const c=Object.values(PRICES).find(x=>x.cur===(q.currency||'NGN'));return (c?c.sym:'')+Number(q.amount||0).toLocaleString()};
+$('qCountry').onchange=qPkgs;qPkgs();$('package').onchange=qFill;$('qMonths').oninput=qFill;
 $('makeQuote').onclick=async()=>{
  const leadId=$('quoteLead').value;if(!leadId)return alert('Capture a lead first.');
- const {data:q,error}=await sb.from('sales_quotes').insert({lead_id:leadId,package:$('package').value,scope:$('scope').value,amount:Number($('amount').value||0),status:'Draft'}).select().single();
+ const pk=PKGS.find(x=>x.k===$('package').value),c=$('qCountry').value;if(!(Number($('amount').value)>0))return alert('Enter the quote amount.');
+ const {data:q,error}=await sb.from('sales_quotes').insert({lead_id:leadId,package:pk?pk.name:$('package').value,scope:$('scope').value,amount:Number($('amount').value||0),currency:PRICES[c].cur,country:COUNTRY_NAME[c],status:'Draft'}).select().single();
  if(error)return alert(error.message);
  await sb.from('leads').update({stage:'Proposal'}).eq('id',leadId);
- await sb.from('platform_events').insert({event_type:'quote.created',source:'sales-workspace',entity_type:'sales_quote',entity_id:q.id,payload:{lead_id:leadId,package:q.package,amount:q.amount}});
- $('scope').value='';$('amount').value='';await render();
+ await sb.from('platform_events').insert({event_type:'quote.created',source:'sales-workspace',entity_type:'sales_quote',entity_id:q.id,payload:{lead_id:leadId,package:q.package,amount:q.amount,currency:q.currency}});
+ qFill();await render();
 };
 $('copyQuote').onclick=async()=>{
  const q=state.quotes[0];if(!q)return alert('Create a quote first.');
  const l=state.leads.find(x=>x.id===q.lead_id)||{};
- await navigator.clipboard.writeText('Hello '+(l.name||'')+', thank you for speaking with The Resident Bookkeeper.\n\nPackage: '+q.package+'\nScope: '+(q.scope||'')+'\nQuote: '+q.amount+'\n\nPlease let us know if you would like to proceed.');
+ await navigator.clipboard.writeText('Hello '+(l.name||'')+', thank you for speaking with The Resident Bookkeeper.\n\nPackage: '+q.package+'\nScope: '+(q.scope||'')+'\nQuote: '+qMoney(q)+'\n\nPlease let us know if you would like to proceed.');
  alert('Quote message copied.');
 };
 $('refresh').onclick=render;
