@@ -1,0 +1,9 @@
+.git
+.github
+supabase
+node_modules
+*.md
+netlify.toml
+wrangler.jsonc
+.assetsignore
+.wrangler
