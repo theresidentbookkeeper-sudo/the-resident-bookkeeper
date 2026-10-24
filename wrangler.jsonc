@@ -1,0 +1,10 @@
+{
+  // Cloudflare hosting for residentbookkeeper.com: static site only (logins and data are on Supabase)
+  "name": "the-resident-bookkeeper",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none"
+  }
+}
