@@ -35,3 +35,7 @@ create or replace function public.trb_business_card() returns json language sql 
     'usd_routing_number',usd_routing_number,'usd_account_type',usd_account_type)
   from public.profile order by updated_at desc limit 1
 $$;
+
+-- Bank address for US wires
+alter table public.profile add column if not exists usd_bank_address text;
+-- (trb_business_card() also returns usd_bank_address; see the deployed definition)
