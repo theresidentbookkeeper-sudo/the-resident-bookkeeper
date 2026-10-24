@@ -12,6 +12,8 @@ const MODEL = "claude-sonnet-4-5";
 const SITE = "https://residentbookkeeper.com";
 const MARKETS = ["Nigeria", "United States", "United Kingdom", "Canada", "Australia"];
 const SERVICES = "monthly bookkeeping and bank reconciliation, catch-up/clean-up bookkeeping, management accounts and financial reports, payroll support, and TRB Books Lite (an AI-run monthly bookkeeping plan for small Nigerian businesses: upload bank statements, get reports)";
+// Approved price list (matches the website). Plans: Essentials up to 150 transactions/2 accounts; Growth up to 400/5; Premium up to 800/10; over that is a custom quote.
+const PRICES = "APPROVED PRICES (quote only these; final price is confirmed in writing after a free Books Health Check). Nigeria: Books Lite ₦100,000 a year (2 accounts, 100 transactions a month); Essentials ₦150,000/month; Growth ₦300,000/month; Premium ₦550,000/month; Catch-up ₦100,000 per month of records; Clean-up from ₦250,000. United States: Essentials $299, Growth $499, Premium $849 a month; Catch-up $199 per month of records; Clean-up from $499. United Kingdom: Essentials £229, Growth £399, Premium £679 a month; Catch-up £159 per month; Clean-up from £399. Canada: Essentials C$399, Growth C$679, Premium C$1,149 a month; Catch-up C$269 per month; Clean-up from C$679. Australia: Essentials A$449, Growth A$749, Premium A$1,279 a month; Catch-up A$299 per month; Clean-up from A$749. Plan limits: Essentials up to 150 transactions and 2 bank or card accounts; Growth up to 400 and 5; Premium up to 800 and 10; above that is a custom quote. Never invent discounts or other prices.";
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-trb-cron", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 const today = () => new Date(Date.now() + 3600e3).toISOString().slice(0, 10); // Lagos date
@@ -109,7 +111,7 @@ Write posts that grow an organic audience:
 - Likes and saves: one genuinely useful money/bookkeeping tip a small business owner can use today; simple language; local examples (naira, POS, transfers).
 - Follows: promise ongoing value ("Follow for one bookkeeping tip every weekday").
 - Enquiries: soft CTA to DM "BOOKS" or book a free health check at ${SITE}.
-Rotate formats and goals; never repeat a recent post. No tax or legal advice beyond general education; no claims you cannot back up.`;
+Rotate formats and goals; never repeat a recent post. No tax or legal advice beyond general education; no claims you cannot back up. If a post mentions a price, use only these: ${PRICES}`;
   const ctx = { today: today(), zara_research: z?.proof || null, recent_posts: recent || [], instruction_from_nancy: focus || null };
   const p = await claudeTool(system, JSON.stringify(ctx), tool, 3000);
   const body = `${p.hook}\n\n${p.caption}\n\n${(p.hashtags || []).map((h: string) => (h.startsWith("#") ? h : "#" + h)).join(" ")}`;
@@ -133,7 +135,7 @@ async function maya(admin: SupabaseClient, owner: string, focus = "") {
   if (!todo.length) { const s = "No new leads waiting for a first message."; await log(admin, owner, "maya", "first_messages", "skipped", s); return s; }
   const tool = { name: "message", description: "First outreach message for one lead.", input_schema: { type: "object", required: ["channel", "message"], properties: { channel: { type: "string", enum: ["whatsapp", "email", "instagram_dm", "linkedin"] }, subject: { type: "string" }, message: { type: "string" }, reason: { type: "string" } } } };
   const system = `You are Maya, Sales & Client Acquisition Manager at The Resident Bookkeeper (${SITE}). TRB sells: ${SERVICES}.
-Write a short, warm, specific first message from Nancy Bello, founder of The Resident Bookkeeper. Mention something specific about the lead. One clear next step (free 15-minute bookkeeping health check, or reply to chat). No pressure, no false claims, no prices unless asked.
+Write a short, warm, specific first message from Nancy Bello, founder of The Resident Bookkeeper. Mention something specific about the lead. One clear next step (free 15-minute bookkeeping health check, or reply to chat). No pressure, no false claims, no prices unless asked; if price comes up, use only the approved prices below.\n${PRICES}
 Website enquiries ("New" leads) asked us for help: reply to their enquiry. Zara's "Prospect" leads did not contact us: be respectful, explain why you are reaching out, and make it easy to say no.
 Pick the channel: WhatsApp if a phone exists, else email if an email exists, else Instagram DM or LinkedIn.${focus ? `\nInstruction from Nancy: ${focus}` : ""}`;
   const done: any[] = [];
