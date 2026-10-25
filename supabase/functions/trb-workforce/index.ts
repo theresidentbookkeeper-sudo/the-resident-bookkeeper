@@ -3,6 +3,7 @@
 //   zara  - daily market research (web search) + up to 5 real prospect businesses saved as leads
 //   amara - one social post draft a day, built to earn views, likes and follows
 //   maya  - first-message drafts for new leads, for approval
+//   ada   - client follow-through: overdue invoices, late documents, onboarding, referrals (no AI key needed)
 //   nani  - 7am brief for Nancy (works even without the AI key), emailed when email is connected
 //   instructions - acts on instructions typed to any AI employee in the portal
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -151,6 +152,75 @@ Pick the channel: WhatsApp if a phone exists, else email if an email exists, els
   return s;
 }
 
+
+// ---------- Ada: clients after the sale (onboarding, payments, documents, referrals) ----------
+// Works without the AI key: checks are rules, messages are written from templates and wait for approval.
+async function ada(admin: SupabaseClient, owner: string, focus = "") {
+  const d = today();
+  const fmt = (v: number, c = "NGN") => { try { return new Intl.NumberFormat(c === "USD" ? "en-US" : "en-NG", { style: "currency", currency: c || "NGN", maximumFractionDigits: 2 }).format(Number(v || 0)); } catch { return `${c} ${v}`; } };
+  const nice = (iso: string | null) => iso ? new Date(iso + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }) : "";
+  const [{ data: clients }, { data: invoices }, { data: reqs }, { data: reports }, { data: recent }] = await Promise.all([
+    admin.from("clients").select("id,name,contact_name,email,phone,status,created_at,access_type").eq("owner_id", owner).eq("status", "Active"),
+    admin.from("invoices").select("id,number,amount,currency,status,due_date,issue_date,paid_date,client_id,bill_to").eq("owner_id", owner),
+    admin.from("client_document_requests").select("id,client_id,title,status,due_date"),
+    admin.from("client_reports").select("id,client_id"),
+    admin.from("trb_approvals").select("payload,status,created_at").eq("employee_id", "ada").gte("created_at", new Date(Date.now() - 120 * 864e5).toISOString()),
+  ]);
+  const C = clients || [], I = invoices || [], Q = reqs || [], R = reports || [], P = recent || [];
+  const done = (type: string, ref: string, days: number) => P.some((a: any) => a.payload?.type === type && a.payload?.ref === ref && a.status !== "rejected" && Date.parse(a.created_at) > Date.now() - days * 864e5);
+  const byId = (id: string) => C.find((c: any) => c.id === id);
+  const drafts: any[] = [], notes: string[] = [];
+  const add = async (type: string, ref: string, c: any, title: string, body: string, extra: Record<string, unknown> = {}) => {
+    const phone = c?.phone || null, email = c?.email || null;
+    const channel = phone ? "whatsapp" : email ? "email" : "copy";
+    const { data: ap } = await admin.from("trb_approvals").insert({ owner_id: owner, employee_id: "ada", kind: "other", title, body, payload: { type, ref, client_id: c?.id || null, client_name: c?.name || extra.name || null, channel, phone, email, subject: extra.subject || null, reason: extra.reason || null } }).select("id").single();
+    drafts.push({ type, title, approval_id: ap?.id });
+  };
+  const hi = (c: any, b?: any) => `Hello ${(c?.contact_name || b?.contact || c?.name || b?.name || "there").split(" ")[0]},`;
+
+  // 1. Overdue invoices: polite reminder (at most once a week per invoice)
+  for (const inv of I.filter((i: any) => ["Sent", "Overdue"].includes(i.status) && i.due_date && i.due_date < d)) {
+    if (done("payment_reminder", inv.id, 7)) continue;
+    const c = byId(inv.client_id), b = inv.bill_to || {};
+    await add("payment_reminder", inv.id, c || { name: b.name, email: b.email, phone: b.phone }, `Payment reminder: ${inv.number} (${b.name || c?.name || "client"})`,
+      `${hi(c, b)} I hope you're well.\n\nA quick reminder that invoice ${inv.number} for ${fmt(inv.amount, inv.currency)} was due on ${nice(inv.due_date)}. The payment details are on the invoice${c?.access_type ? " and in your client portal" : ""}.\n\nIf you've already paid, thank you, and please send me the payment reference so I can match it.\n\nNancy\nThe Resident Bookkeeper`,
+      { subject: `Reminder: invoice ${inv.number}`, reason: "Invoice is overdue", name: b.name });
+  }
+  // 2. Draft invoices nobody has sent yet (Nancy's to-do, no message)
+  const drafty = I.filter((i: any) => i.status === "Draft" && i.issue_date && i.issue_date <= new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10));
+  if (drafty.length) notes.push(`${drafty.length} invoice(s) still in Draft: ${drafty.map((i: any) => i.number).join(", ")}. Review and send them from Finance.`);
+  // 3. Late document requests: gentle reminder (once a week)
+  for (const r of Q.filter((x: any) => x.status === "requested" && x.due_date && x.due_date < d)) {
+    if (done("document_reminder", r.id, 7)) continue;
+    const c = byId(r.client_id); if (!c) continue;
+    await add("document_reminder", r.id, c, `Document reminder: ${c.name}`,
+      `${hi(c)} a gentle reminder that we're still waiting for: ${r.title} (it was due on ${nice(r.due_date)}).\n\nYou can upload it in your client portal at residentbookkeeper.com/platform, or send it to me on WhatsApp. Thank you!\n\nNancy\nThe Resident Bookkeeper`,
+      { subject: `Still needed: ${r.title}`, reason: "Requested document is late" });
+  }
+  // 4. New clients with nothing started: ask for the first documents (once)
+  const month = new Date(Date.now() - 30 * 864e5); const lastMonth = month.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  for (const c of C.filter((x: any) => x.access_type !== "bookslite" && Date.parse(x.created_at) > Date.now() - 45 * 864e5)) {
+    if (Q.some((x: any) => x.client_id === c.id) || R.some((x: any) => x.client_id === c.id) || done("onboarding_start", c.id, 365)) continue;
+    await add("onboarding_start", c.id, c, `Start onboarding: ${c.name}`,
+      `${hi(c)} welcome again to The Resident Bookkeeper, we're glad to have you.\n\nTo get started, please send:\n1. Bank statements for ${lastMonth} for every business account (PDF or Excel)\n2. Sales invoices and receipts for the month\n3. Any bills or expenses you paid\n\nYou can upload them in your client portal at residentbookkeeper.com/platform or send them on WhatsApp. Once we have them, we'll take it from there.\n\nNancy\nThe Resident Bookkeeper`,
+      { subject: "Getting started: what we need from you", reason: "New client with no documents requested yet" });
+  }
+  // 5. Happy, paying clients: ask for a referral (at most every 90 days)
+  for (const c of C.filter((x: any) => Date.parse(x.created_at) < Date.now() - 60 * 864e5)) {
+    const paid = I.filter((i: any) => i.client_id === c.id && i.status === "Paid");
+    const owing = I.some((i: any) => i.client_id === c.id && ["Sent", "Overdue"].includes(i.status) && i.due_date && i.due_date < d);
+    if (paid.length < 2 || owing || done("referral_ask", c.id, 90)) continue;
+    await add("referral_ask", c.id, c, `Referral request: ${c.name}`,
+      `${hi(c)} thank you for trusting us with your books. It means a lot.\n\nIf you know another business owner who could use the same support, I'd be grateful for an introduction. They can start with our free Books Health Check at residentbookkeeper.com.\n\nNancy\nThe Resident Bookkeeper`,
+      { subject: "A small favour", reason: "Paying client for 2+ months with no overdue invoices" });
+  }
+  const summary = drafts.length || notes.length
+    ? `Client review: ${drafts.length} message(s) drafted for your approval${notes.length ? "; " + notes.join(" ") : "."}`
+    : "Client review: nothing needs attention.";
+  await log(admin, owner, "ada", "client_review", drafts.length || notes.length ? "done" : "skipped", summary + (focus ? ` (Your note: ${focus.slice(0, 200)})` : ""), { drafts, notes, checked: { clients: C.length, invoices: I.length, requests: Q.length } });
+  return summary;
+}
+
 // ---------- Nani: the 7am brief ----------
 async function nani(admin: SupabaseClient, owner: string, prof: any) {
   const since = new Date(Date.now() - 24 * 3600e3).toISOString();
@@ -222,6 +292,7 @@ async function instructions(admin: SupabaseClient, owner: string, prof: any) {
       if (ins.employee_id === "zara") r = await zara(admin, owner, ins.instruction);
       else if (ins.employee_id === "amara") r = await amara(admin, owner, ins.instruction);
       else if (ins.employee_id === "maya") r = await maya(admin, owner, ins.instruction);
+      else if (ins.employee_id === "ada") r = await ada(admin, owner, ins.instruction);
       else if (ins.employee_id === "nani") r = await nani(admin, owner, prof);
       else r = "This employee takes instructions elsewhere: for Nora, open the Books Lite client and use Instruct Nora.";
       await admin.from("trb_ai_instructions").update({ status: "done", response: r, completed_at: new Date().toISOString() }).eq("id", ins.id);
@@ -240,9 +311,10 @@ async function runJob(admin: SupabaseClient, job: string) {
     if (job === "zara") return await zara(admin, owner);
     if (job === "amara") return await amara(admin, owner);
     if (job === "maya") return await maya(admin, owner);
+    if (job === "ada") return await ada(admin, owner);
     if (job === "nani") return await nani(admin, owner, prof);
     if (job === "instructions") return await instructions(admin, owner, prof);
-    if (job === "morning") { const r = []; for (const j of ["zara", "amara", "maya", "nani"]) r.push(await runJob(admin, j)); return r.join(" "); }
+    if (job === "morning") { const r = []; for (const j of ["zara", "amara", "maya", "ada", "nani"]) r.push(await runJob(admin, j)); return r.join(" "); }
     return "Unknown job.";
   } catch (e) {
     const msg = (e as Error).message;
