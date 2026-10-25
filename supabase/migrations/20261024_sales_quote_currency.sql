@@ -47,3 +47,6 @@ begin
   return jsonb_build_object('invoice_id',v_invoice.id,'client_id',v_client.id,'lead_id',v_lead.id,'quote_id',v_quote.id,'invoice_number',v_invoice.number);
 end;
 $$;
+
+-- Ada's daily client review, 6:45am Lagos (before Nani's 7am brief)
+-- select cron.schedule('trb-ada-daily', '45 5 * * *', $$select private.trb_workforce_call('ada')$$);
