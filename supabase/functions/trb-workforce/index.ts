@@ -48,6 +48,21 @@ async function ownerId(admin: SupabaseClient) {
 async function log(admin: SupabaseClient, owner: string, employee_id: string, job: string, status: string, summary: string, proof: unknown = {}) {
   await admin.from("trb_ai_work_log").insert({ owner_id: owner, employee_id, job, status, summary, proof });
 }
+async function resendKey(admin: SupabaseClient): Promise<string | null> {
+  const env = Deno.env.get("RESEND_API_KEY");
+  if (env) return env;
+  const { data } = await admin.from("trb_internal_secrets").select("value").eq("name", "resend_api_key").maybeSingle();
+  return data?.value || null;
+}
+async function sendEmail(admin: SupabaseClient, msg: { to: string; subject: string; text: string; html?: string; from?: string; reply_to?: string }) {
+  const key = await resendKey(admin);
+  if (!key) throw new Error("Email is not connected yet (no Resend key).");
+  const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: msg.from || "Nancy Bello | The Resident Bookkeeper <nancybello@residentbookkeeper.com>", to: [msg.to], reply_to: msg.reply_to || "info@residentbookkeeper.com", subject: msg.subject, text: msg.text, html: msg.html }) });
+  const out = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`Email failed: ${r.status} ${out?.message || JSON.stringify(out)}`);
+  return out?.id as string;
+}
 async function config(admin: SupabaseClient) {
   const { data } = await admin.from("trb_growth_config").select("monthly_client_target,target_markets,organic_only").eq("id", true).maybeSingle();
   return { target: data?.monthly_client_target || 10, markets: data?.target_markets || MARKETS };
@@ -269,7 +284,7 @@ async function nani(admin: SupabaseClient, owner: string, prof: any) {
   const { data: dig } = await admin.from("trb_daily_digest").upsert({ owner_id: owner, digest_date: d, headline, body_text: text, body_html: html, data }, { onConflict: "owner_id,digest_date" }).select("id").single();
   // Email
   let note = "Email not sent: no email service connected yet (RESEND_API_KEY).";
-  const key = Deno.env.get("RESEND_API_KEY"), to = Deno.env.get("TRB_OWNER_EMAIL") || prof?.email;
+  const key = await resendKey(admin), to = Deno.env.get("TRB_OWNER_EMAIL") || prof?.email;
   if (key && to) {
     const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ from: Deno.env.get("TRB_EMAIL_FROM") || "Nani at The Resident Bookkeeper <nani@residentbookkeeper.com>", to: [to], subject: `Your TRB brief: ${needs.length ? needs.length + " thing(s) need you" : "all clear"}`, html, text }) });
     note = r.ok ? `Emailed to ${to}.` : `Email failed: ${r.status} ${await r.text()}`;
@@ -345,6 +360,24 @@ Deno.serve(async (req) => {
       if (!allowed) return json({ error: "TRB team access is required." }, 403);
     }
     const body = await req.json().catch(() => ({}));
+    if (body.action === "send_email") {
+      // Nancy approved a drafted message: send it by email and close the approval.
+      const { data: ap } = await admin.from("trb_approvals").select("*").eq("id", String(body.approval_id || "")).maybeSingle();
+      if (!ap) return json({ error: "Draft not found." }, 404);
+      const p = ap.payload || {};
+      const to = String(body.to || p.email || "").trim();
+      if (!/^\S+@\S+\.\S+$/.test(to)) return json({ error: "This draft has no email address. Add one or send it another way." }, 400);
+      const text = String(body.body || ap.body || "").trim();
+      const subject = String(body.subject || p.subject || ap.title || "The Resident Bookkeeper").trim();
+      const esc = (x: string) => x.replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m] as string));
+      const html = `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#14110E;max-width:620px">${esc(text).replace(/\n/g, "<br>")}<p style="margin-top:22px;color:#9A7426;font-size:12px;letter-spacing:.08em">ACCURATE RECORDS · SMARTER DECISIONS · STRONGER BUSINESS<br><a href="${SITE}" style="color:#9A7426">residentbookkeeper.com</a></p></div>`;
+      try {
+        const id = await sendEmail(admin, { to, subject, text, html });
+        await admin.from("trb_approvals").update({ status: "done", body: text, decided_at: new Date().toISOString() }).eq("id", ap.id);
+        await log(admin, ap.owner_id, ap.employee_id || "nani", "email_sent", "done", `Email sent to ${to}: "${subject}".`, { approval_id: ap.id, resend_id: id });
+        return json({ ok: true, id });
+      } catch (e) { return json({ error: (e as Error).message }, 502); }
+    }
     if (body.action !== "run") return json({ error: "Unknown action." }, 400);
     const job = String(body.job || "");
     // @ts-ignore provided by Supabase
