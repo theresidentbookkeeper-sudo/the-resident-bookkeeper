@@ -7,3 +7,6 @@ netlify.toml
 wrangler.jsonc
 .assetsignore
 .wrangler
+src
+package.json
+package-lock.json
