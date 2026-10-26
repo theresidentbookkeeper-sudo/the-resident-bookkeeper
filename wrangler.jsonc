@@ -1,10 +1,19 @@
 {
-  // Cloudflare hosting for residentbookkeeper.com: static site only (logins and data are on Supabase)
+  // Cloudflare hosting for residentbookkeeper.com. Logins and data are on Supabase.
+  // The script only handles email; web pages are served straight from the static files.
   "name": "the-resident-bookkeeper",
+  "main": "src/worker.js",
   "compatibility_date": "2026-10-01",
   "assets": {
     "directory": "./",
+    "binding": "ASSETS",
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "none"
+  },
+  "vars": {
+    "FORWARD_TO": "theresidentbookkeeper@gmail.com",
+    "FORWARD_MAP": "{}",
+    "INBOX_URL": "https://njhohxhtqkktktngjflb.supabase.co/functions/v1/inbox-ingest"
   }
+  // INBOX_TOKEN is a secret set in the Cloudflare dashboard (Settings > Variables and Secrets), never in this file.
 }

@@ -54,11 +54,16 @@ async function resendKey(admin: SupabaseClient): Promise<string | null> {
   const { data } = await admin.from("trb_internal_secrets").select("value").eq("name", "resend_api_key").maybeSingle();
   return data?.value || null;
 }
-async function sendEmail(admin: SupabaseClient, msg: { to: string; subject: string; text: string; html?: string; from?: string; reply_to?: string }) {
+type Attachment = { filename: string; content: string };
+const SENDER: Record<string, string> = { ada: "Ada", nani: "Nani", zara: "Zara", amara: "Amara", maya: "Maya", nora: "Nora" };
+// All AI team emails go out from info@residentbookkeeper.com; replies come back to info@.
+async function sendEmail(admin: SupabaseClient, msg: { to: string; subject: string; text: string; html?: string; from?: string; reply_to?: string; cc?: string[]; attachments?: Attachment[] }) {
   const key = await resendKey(admin);
   if (!key) throw new Error("Email is not connected yet (no Resend key).");
-  const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: msg.from || "Nancy Bello | The Resident Bookkeeper <nancybello@residentbookkeeper.com>", to: [msg.to], reply_to: msg.reply_to || "info@residentbookkeeper.com", subject: msg.subject, text: msg.text, html: msg.html }) });
+  const payload: Record<string, unknown> = { from: msg.from || "The Resident Bookkeeper <info@residentbookkeeper.com>", to: [msg.to], reply_to: msg.reply_to || "info@residentbookkeeper.com", subject: msg.subject, text: msg.text, html: msg.html };
+  if (msg.cc?.length) payload.cc = msg.cc;
+  if (msg.attachments?.length) payload.attachments = msg.attachments;
+  const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   const out = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(`Email failed: ${r.status} ${out?.message || JSON.stringify(out)}`);
   return out?.id as string;
@@ -198,7 +203,7 @@ async function ada(admin: SupabaseClient, owner: string, focus = "") {
     if (done("payment_reminder", inv.id, 7)) continue;
     const c = byId(inv.client_id), b = inv.bill_to || {};
     await add("payment_reminder", inv.id, c || { name: b.name, email: b.email, phone: b.phone }, `Payment reminder: ${inv.number} (${b.name || c?.name || "client"})`,
-      `${hi(c, b)} I hope you're well.\n\nA quick reminder that invoice ${inv.number} for ${fmt(inv.amount, inv.currency)} was due on ${nice(inv.due_date)}. The payment details are on the invoice${c?.access_type ? " and in your client portal" : ""}.\n\nIf you've already paid, thank you, and please send me the payment reference so I can match it.\n\nNancy\nThe Resident Bookkeeper`,
+      `${hi(c, b)} I hope you're well.\n\nA quick reminder that invoice ${inv.number} for ${fmt(inv.amount, inv.currency)} was due on ${nice(inv.due_date)}. The payment details are on the invoice${c?.access_type ? " and in your client portal" : ""}.\n\nIf you've already paid, thank you, and please send us the payment reference so we can match it.\n\nAda\nThe Resident Bookkeeper (TRB)`,
       { subject: `Reminder: invoice ${inv.number}`, reason: "Invoice is overdue", name: b.name });
   }
   // 2. Draft invoices nobody has sent yet (Nancy's to-do, no message)
@@ -209,7 +214,7 @@ async function ada(admin: SupabaseClient, owner: string, focus = "") {
     if (done("document_reminder", r.id, 7)) continue;
     const c = byId(r.client_id); if (!c) continue;
     await add("document_reminder", r.id, c, `Document reminder: ${c.name}`,
-      `${hi(c)} a gentle reminder that we're still waiting for: ${r.title} (it was due on ${nice(r.due_date)}).\n\nYou can upload it in your client portal at residentbookkeeper.com/platform, or send it to me on WhatsApp. Thank you!\n\nNancy\nThe Resident Bookkeeper`,
+      `${hi(c)} a gentle reminder that we're still waiting for: ${r.title} (it was due on ${nice(r.due_date)}).\n\nYou can upload it in your client portal at residentbookkeeper.com/platform, or send it to us on WhatsApp. Thank you!\n\nAda\nThe Resident Bookkeeper (TRB)`,
       { subject: `Still needed: ${r.title}`, reason: "Requested document is late" });
   }
   // 4. New clients with nothing started: ask for the first documents (once)
@@ -217,7 +222,7 @@ async function ada(admin: SupabaseClient, owner: string, focus = "") {
   for (const c of C.filter((x: any) => x.access_type !== "bookslite" && Date.parse(x.created_at) > Date.now() - 45 * 864e5)) {
     if (Q.some((x: any) => x.client_id === c.id) || R.some((x: any) => x.client_id === c.id) || done("onboarding_start", c.id, 365)) continue;
     await add("onboarding_start", c.id, c, `Start onboarding: ${c.name}`,
-      `${hi(c)} welcome again to The Resident Bookkeeper, we're glad to have you.\n\nTo get started, please send:\n1. Bank statements for ${lastMonth} for every business account (PDF or Excel)\n2. Sales invoices and receipts for the month\n3. Any bills or expenses you paid\n\nYou can upload them in your client portal at residentbookkeeper.com/platform or send them on WhatsApp. Once we have them, we'll take it from there.\n\nNancy\nThe Resident Bookkeeper`,
+      `${hi(c)} welcome again to The Resident Bookkeeper, we're glad to have you.\n\nTo get started, please send:\n1. Bank statements for ${lastMonth} for every business account (PDF or Excel)\n2. Sales invoices and receipts for the month\n3. Any bills or expenses you paid\n\nYou can upload them in your client portal at residentbookkeeper.com/platform or send them on WhatsApp. Once we have them, we'll take it from there.\n\nAda\nThe Resident Bookkeeper (TRB)`,
       { subject: "Getting started: what we need from you", reason: "New client with no documents requested yet" });
   }
   // 5. Happy, paying clients: ask for a referral (at most every 90 days)
@@ -226,7 +231,7 @@ async function ada(admin: SupabaseClient, owner: string, focus = "") {
     const owing = I.some((i: any) => i.client_id === c.id && ["Sent", "Overdue"].includes(i.status) && i.due_date && i.due_date < d);
     if (paid.length < 2 || owing || done("referral_ask", c.id, 90)) continue;
     await add("referral_ask", c.id, c, `Referral request: ${c.name}`,
-      `${hi(c)} thank you for trusting us with your books. It means a lot.\n\nIf you know another business owner who could use the same support, I'd be grateful for an introduction. They can start with our free Books Health Check at residentbookkeeper.com.\n\nNancy\nThe Resident Bookkeeper`,
+      `${hi(c)} thank you for trusting us with your books. It means a lot.\n\nIf you know another business owner who could use the same support, I'd be grateful for an introduction. They can start with our free Books Health Check at residentbookkeeper.com.\n\nAda\nThe Resident Bookkeeper (TRB)`,
       { subject: "A small favour", reason: "Paying client for 2+ months with no overdue invoices" });
   }
   const summary = drafts.length || notes.length
@@ -286,7 +291,7 @@ async function nani(admin: SupabaseClient, owner: string, prof: any) {
   let note = "Email not sent: no email service connected yet (RESEND_API_KEY).";
   const key = await resendKey(admin), to = Deno.env.get("TRB_OWNER_EMAIL") || prof?.email;
   if (key && to) {
-    const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ from: Deno.env.get("TRB_EMAIL_FROM") || "Nani at The Resident Bookkeeper <nani@residentbookkeeper.com>", to: [to], subject: `Your TRB brief: ${needs.length ? needs.length + " thing(s) need you" : "all clear"}`, html, text }) });
+    const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ from: Deno.env.get("TRB_EMAIL_FROM") || "Nani | The Resident Bookkeeper <info@residentbookkeeper.com>", to: [to], subject: `Your TRB brief: ${needs.length ? needs.length + " thing(s) need you" : "all clear"}`, html, text }) });
     note = r.ok ? `Emailed to ${to}.` : `Email failed: ${r.status} ${await r.text()}`;
     if (r.ok) await admin.from("trb_daily_digest").update({ emailed_at: new Date().toISOString() }).eq("id", dig?.id);
   }
@@ -372,9 +377,15 @@ Deno.serve(async (req) => {
       const esc = (x: string) => x.replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m] as string));
       const html = `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#14110E;max-width:620px">${esc(text).replace(/\n/g, "<br>")}<p style="margin-top:22px;color:#9A7426;font-size:12px;letter-spacing:.08em">ACCURATE RECORDS · SMARTER DECISIONS · STRONGER BUSINESS<br><a href="${SITE}" style="color:#9A7426">residentbookkeeper.com</a></p></div>`;
       try {
-        const id = await sendEmail(admin, { to, subject, text, html });
+        const who = SENDER[String(ap.employee_id || "")];
+        const from = who ? `${who} | The Resident Bookkeeper <info@residentbookkeeper.com>` : undefined;
+        const ccIn = Array.isArray(body.cc) ? body.cc : (Array.isArray(p.cc) ? p.cc : []);
+        const cc = ccIn.map((x: unknown) => String(x).trim()).filter((x: string) => /^\S+@\S+\.\S+$/.test(x)).slice(0, 5);
+        const attachments = (Array.isArray(body.attachments) ? body.attachments : []).filter((a: any) => a?.filename && a?.content)
+          .slice(0, 5).map((a: any) => ({ filename: String(a.filename), content: String(a.content) }));
+        const id = await sendEmail(admin, { to, subject, text, html, from, cc, attachments });
         await admin.from("trb_approvals").update({ status: "done", body: text, decided_at: new Date().toISOString() }).eq("id", ap.id);
-        await log(admin, ap.owner_id, ap.employee_id || "nani", "email_sent", "done", `Email sent to ${to}: "${subject}".`, { approval_id: ap.id, resend_id: id });
+        await log(admin, ap.owner_id, ap.employee_id || "nani", "email_sent", "done", `Email sent to ${to}${cc.length ? " (cc " + cc.join(", ") + ")" : ""}: "${subject}"${attachments.length ? " with " + attachments.map((a: Attachment) => a.filename).join(", ") : ""}.`, { approval_id: ap.id, resend_id: id });
         return json({ ok: true, id });
       } catch (e) { return json({ error: (e as Error).message }, 502); }
     }
