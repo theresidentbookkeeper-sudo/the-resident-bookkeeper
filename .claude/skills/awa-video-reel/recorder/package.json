@@ -1,0 +1,1 @@
+{"name": "awa-video-reel-recorder", "private": true, "type": "module", "dependencies": {"puppeteer-core": "^24.43.1", "@lydell/node-pty": "^1.1.0", "@xterm/headless": "^5.5.0", "@xterm/xterm": "^5.5.0"}}
