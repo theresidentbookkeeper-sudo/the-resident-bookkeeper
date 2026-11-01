@@ -1,40 +1,47 @@
 # The Resident Bookkeeper
 
-The Resident Bookkeeper is a bookkeeping company based in Nigeria and serving businesses remotely across Nigeria, the United States, the United Kingdom, Australia and Canada.
+The Resident Bookkeeper (THERESIDENTBOOKKEEPER LTD, RC 9906291) is a remote bookkeeping company based in Abuja, Nigeria, serving small and growing businesses in Nigeria, the United States, the United Kingdom, Australia and Canada.
 
-Tagline: Accurate Records • Smarter Decisions • Stronger Business.
+Tagline: Accurate Records. Smarter Decisions. Stronger Business.
 
-## Core services
-- Full-cycle bookkeeping
-- Bank reconciliations
-- Accounts payable and accounts receivable support
-- Catch-up bookkeeping
-- Cleanup bookkeeping
-- Financial reporting
-- Ongoing bookkeeping support
+## What we do
+- Record every sale and expense each month
+- Match bank statements so nothing is missing (bank reconciliation)
+- A clear monthly report of profit and cash, which is the figure a business's tax is based on
+- Payroll support: staff salaries tracked and PAYE calculated (Nigeria)
+- VAT and withholding tax (WHT) tracked as you go, so nothing comes as a surprise (Nigeria; VAT, GST, GST/HST or sales-tax-coded records in other markets)
+- Catch-up and clean-up: old, messy records brought up to date before they become a tax problem
+- Accounts payable and receivable support, and monthly or annual financial reports
 
-## Public website
-https://residentbookkeeper.com/
+We keep books tax-ready. We do not give tax or legal advice, file tax returns, audit, or move client funds; we prepare the records that make filing accurate.
 
-## Regional service pages
+Every new client starts with a free Books Health Check to confirm scope before any price is agreed.
+
+## Pricing (local currency; final price confirmed in writing after the free Books Health Check)
+Plan limits: Essentials up to 150 transactions a month and 2 bank or card accounts; Growth up to 400 and 5; Premium up to 800 and 10; above that is a custom quote.
+
+Nigeria (NGN):
+- TRB Books Lite: ₦100,000 a year (up to 2 business bank accounts and 100 transactions a month; statement upload, categorisation, reconciliation and monthly reports)
+- Essentials ₦150,000 a month; Growth ₦300,000 a month; Premium ₦550,000 a month
+- Catch-up ₦100,000 per month of records; Clean-up from ₦250,000
+
+United States (USD): Essentials $299, Growth $499, Premium $849 a month; Catch-up $199 per month of records; Clean-up from $499
+United Kingdom (GBP): Essentials £229, Growth £399, Premium £679 a month; Catch-up £159 per month; Clean-up from £399
+Canada (CAD): Essentials C$399, Growth C$679, Premium C$1,149 a month; Catch-up C$269 per month; Clean-up from C$679
+Australia (AUD): Essentials A$449, Growth A$749, Premium A$1,279 a month; Catch-up A$299 per month; Clean-up from A$749
+
+## Pages
+- Home: https://residentbookkeeper.com/
 - Nigeria: https://residentbookkeeper.com/bookkeeping-nigeria
+- TRB Books Lite (Nigeria): https://residentbookkeeper.com/bookslite-start
 - United States: https://residentbookkeeper.com/bookkeeping-us
 - United Kingdom: https://residentbookkeeper.com/bookkeeping-uk
 - Australia: https://residentbookkeeper.com/bookkeeping-australia
 - Canada: https://residentbookkeeper.com/bookkeeping-canada
+- About: https://residentbookkeeper.com/about
 
 ## Contact
-Email: theresidentbookkeeper@gmail.com
+Email: info@residentbookkeeper.com
 WhatsApp: +234 802 600 0078
 Facebook: https://www.facebook.com/residentbookkeeper
 Instagram: https://www.instagram.com/theresidentbookkeeper/
-
-## Pricing
-Essentials: $299/month (up to 150 transactions, 2 accounts)
-Growth: $499/month (up to 400 transactions, 5 accounts)
-Premium: $849/month (up to 800 transactions, 10 accounts)
-Catch-up: $199 per month of records behind
-Cleanup: from $499
-Larger businesses (over 800 transactions): custom quote
-
-Final pricing depends on transaction volume, number of accounts, software, reporting requirements and the condition of the books.
