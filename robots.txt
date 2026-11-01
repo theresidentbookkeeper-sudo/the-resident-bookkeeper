@@ -5,6 +5,10 @@ Disallow: /platform
 Disallow: /hub
 Disallow: /sales-hub
 Disallow: /bookslite
+Allow: /bookslite-start
+Disallow: /books-lite
+Disallow: /client-dashboard
+Disallow: /workspace
 
 User-agent: OAI-SearchBot
 Allow: /
@@ -13,6 +17,10 @@ Disallow: /platform
 Disallow: /hub
 Disallow: /sales-hub
 Disallow: /bookslite
+Allow: /bookslite-start
+Disallow: /books-lite
+Disallow: /client-dashboard
+Disallow: /workspace
 
 User-agent: GPTBot
 Allow: /
@@ -21,5 +29,9 @@ Disallow: /platform
 Disallow: /hub
 Disallow: /sales-hub
 Disallow: /bookslite
+Allow: /bookslite-start
+Disallow: /books-lite
+Disallow: /client-dashboard
+Disallow: /workspace
 
 Sitemap: https://residentbookkeeper.com/sitemap.xml
