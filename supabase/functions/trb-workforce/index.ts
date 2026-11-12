@@ -41,16 +41,16 @@ function useGemini() { return !Deno.env.get("ANTHROPIC_API_KEY") && !!geminiKey(
 async function gemini(system: string, prompt: string, search = false) {
   const key = geminiKey();
   if (!key) throw new NeedsKey("No AI key is set (ANTHROPIC_API_KEY or GEMINI_API_KEY).");
-  const models = [Deno.env.get("GEMINI_MODEL") || "gemini-flash-latest", "gemini-2.5-flash"];
+  const models = [...new Set([Deno.env.get("GEMINI_MODEL") || "gemini-flash-lite-latest", "gemini-flash-latest"])];
   let last = "";
   for (const model of models) {
-    const body: Record<string, unknown> = { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.7, maxOutputTokens: 8192 } };
+    const body: Record<string, unknown> = { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.7, maxOutputTokens: 4096 } };
     if (search) body.tools = [{ google_search: {} }];
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body) });
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body), signal: AbortSignal.timeout(45000) }).catch((e) => new Response(JSON.stringify({ error: { message: "timed out or unreachable: " + String(e) } }), { status: 503 }));
     const data = await res.json().catch(() => ({}));
     if (res.ok) return ((data?.candidates?.[0]?.content?.parts) || []).map((p: any) => p.text || "").join("\n");
     last = `Gemini error ${res.status}: ${data?.error?.message || "unknown"}`;
-    if (res.status !== 404) break;
+    if (![404, 429, 500, 503].includes(res.status)) break;
   }
   throw new Error(last);
 }
@@ -109,7 +109,13 @@ Rules: 3 opportunities (deadlines, rule changes, programmes, events that create 
 Up to 5 prospects: real small or growing BUSINESSES (not individuals) that plausibly need bookkeeping now (e.g. new SMEs, grant/competition participants, businesses hiring an accountant, MTD-affected UK sole traders' firms, Nigerian SMEs). Give public_email/public_phone ONLY if published on the business's own site or listing, else "". Skip these existing leads: ${known.slice(0, 120).join("; ") || "none"}.
 3 content ideas for Amara's social posts based on the opportunities.`;
   let text: string;
-  if (useGemini()) text = await gemini(system.replace("Use web search.", "Use Google Search."), ask, true);
+  if (useGemini()) {
+    try { text = await gemini(system.replace("Use web search.", "Use Google Search."), ask, true); }
+    catch (e) {
+      // Without live search Zara would have to guess businesses and contact details, so she waits instead.
+      throw new NeedsKey(`Zara needs live web search. Google's free tier does not include it on this key (${(e as Error).message.slice(0, 80)}). She will run once the Anthropic key is added.`);
+    }
+  }
   else {
     const data = await claude({ max_tokens: 6000, system, messages: [{ role: "user", content: ask }], tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }] });
     text = (data.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n");
