@@ -14,6 +14,7 @@
     "FORWARD_TO": "theresidentbookkeeper@gmail.com",
     "FORWARD_MAP": "{}",
     "INBOX_URL": "https://njhohxhtqkktktngjflb.supabase.co/functions/v1/inbox-ingest"
-  }
+  },
+  "observability": { "enabled": true }
   // INBOX_TOKEN is a secret set in the Cloudflare dashboard (Settings > Variables and Secrets), never in this file.
 }
