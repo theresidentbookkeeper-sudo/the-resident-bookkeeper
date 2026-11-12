@@ -1,0 +1,4 @@
+-- Email Nancy (as Nani, through Resend) when a bookkeeper asks a client for a document or submits a report,
+-- and email clients with a portal login when a document is requested. Applied 12 Nov 2026.
+-- Functions: public.trb_send_email(to, subject, text); triggers trb_notify_doc_request (client_document_requests insert)
+-- and trb_notify_report_submitted (client_reports submitted_at update). See the live database for the full bodies.
