@@ -34,6 +34,26 @@ async function claudeTool(system: string, text: string, tool: any, max_tokens = 
   if (!use) throw new Error("AI did not return a structured answer.");
   return use.input;
 }
+// Gemini (free tier) is used ONLY for Zara and Amara, which work from public information.
+// Google's free tier terms say not to send sensitive, confidential or personal information, so no client data goes here.
+function geminiKey() { return Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY") || ""; }
+function useGemini() { return !Deno.env.get("ANTHROPIC_API_KEY") && !!geminiKey(); }
+async function gemini(system: string, prompt: string, search = false) {
+  const key = geminiKey();
+  if (!key) throw new NeedsKey("No AI key is set (ANTHROPIC_API_KEY or GEMINI_API_KEY).");
+  const models = [Deno.env.get("GEMINI_MODEL") || "gemini-flash-latest", "gemini-2.5-flash"];
+  let last = "";
+  for (const model of models) {
+    const body: Record<string, unknown> = { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.7, maxOutputTokens: 8192 } };
+    if (search) body.tools = [{ google_search: {} }];
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) return ((data?.candidates?.[0]?.content?.parts) || []).map((p: any) => p.text || "").join("\n");
+    last = `Gemini error ${res.status}: ${data?.error?.message || "unknown"}`;
+    if (res.status !== 404) break;
+  }
+  throw new Error(last);
+}
 function lastJson(text: string) {
   const blocks = [...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)].map((m) => m[1]);
   for (const b of blocks.reverse()) { try { return JSON.parse(b); } catch { /* next */ } }
@@ -88,8 +108,12 @@ Today is ${today()}. Use web search. Be factual: every item must come from a pag
 Rules: 3 opportunities (deadlines, rule changes, programmes, events that create bookkeeping demand in our markets this month).
 Up to 5 prospects: real small or growing BUSINESSES (not individuals) that plausibly need bookkeeping now (e.g. new SMEs, grant/competition participants, businesses hiring an accountant, MTD-affected UK sole traders' firms, Nigerian SMEs). Give public_email/public_phone ONLY if published on the business's own site or listing, else "". Skip these existing leads: ${known.slice(0, 120).join("; ") || "none"}.
 3 content ideas for Amara's social posts based on the opportunities.`;
-  const data = await claude({ max_tokens: 6000, system, messages: [{ role: "user", content: ask }], tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }] });
-  const text = (data.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n");
+  let text: string;
+  if (useGemini()) text = await gemini(system.replace("Use web search.", "Use Google Search."), ask, true);
+  else {
+    const data = await claude({ max_tokens: 6000, system, messages: [{ role: "user", content: ask }], tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }] });
+    text = (data.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n");
+  }
   const out = lastJson(text);
   const added: any[] = [];
   for (const p of (out.prospects || []).slice(0, 5)) {
@@ -134,7 +158,12 @@ Write posts that grow an organic audience:
 - Enquiries: soft CTA to DM "BOOKS" or book a free health check at ${SITE}.
 Rotate formats and goals; never repeat a recent post. No tax or legal advice beyond general education; no claims you cannot back up. If a post mentions a price, use only these: ${PRICES}`;
   const ctx = { today: today(), zara_research: z?.proof || null, recent_posts: recent || [], instruction_from_nancy: focus || null };
-  const p = await claudeTool(system, JSON.stringify(ctx), tool, 3000);
+  let p: any;
+  if (useGemini()) {
+    const t = await gemini(system, `${JSON.stringify(ctx)}\n\nReply with ONE fenced json block matching this schema (all required fields filled): ${JSON.stringify(tool.input_schema)}`);
+    p = lastJson(t);
+    for (const k of tool.input_schema.required) if (p[k] === undefined || p[k] === "") throw new Error(`Gemini post draft is missing "${k}".`);
+  } else p = await claudeTool(system, JSON.stringify(ctx), tool, 3000);
   const body = `${p.hook}\n\n${p.caption}\n\n${(p.hashtags || []).map((h: string) => (h.startsWith("#") ? h : "#" + h)).join(" ")}`;
   const { data: ap } = await admin.from("trb_approvals").insert({ owner_id: owner, employee_id: "amara", kind: "social_post", title: p.title, body, payload: p }).select("id").single();
   const summary = `Drafted today's ${p.format} ("${p.title}", goal: ${p.goal}). Waiting for your approval.`;
@@ -256,7 +285,7 @@ async function nani(admin: SupabaseClient, owner: string, prof: any) {
     admin.from("client_reports").select("id,title").eq("status", "client_reviewed"),
     admin.from("client_document_requests").select("id,title,due_date,status").in("status", ["requested", "uploaded"]),
     admin.from("invoices").select("id,number,amount,due_date,status").eq("owner_id", owner).neq("status", "Paid"),
-    admin.from("sales_followups").select("id,title,due_at,status").eq("owner_id", owner).neq("status", "Sent").lte("due_at", new Date(Date.now() + 864e5).toISOString()),
+    admin.from("sales_followups").select("id,title,due_at,status").eq("owner_id", owner).neq("status", "Sent").not("status", "ilike", "On hold%").not("status", "ilike", "Suppressed%").lte("due_at", new Date(Date.now() + 864e5).toISOString()),
   ]);
   const [leads, newClients, approvals, work, blHeld, blReady, clientNotes, reviewed, reqs, invoices, followups] = q.map((x) => x.data || []);
   const { target } = await config(admin);
@@ -338,7 +367,7 @@ async function runJob(admin: SupabaseClient, job: string) {
     return "Unknown job.";
   } catch (e) {
     const msg = (e as Error).message;
-    await log(admin, owner, job === "instructions" ? "nani" : job, job, "failed", msg);
+    await log(admin, owner, job === "instructions" ? "nani" : job, job, e instanceof NeedsKey ? "skipped" : "failed", msg);
     return msg;
   }
 }
@@ -350,16 +379,20 @@ Deno.serve(async (req) => {
     const url = Deno.env.get("SUPABASE_URL")!, anon = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SECRET_KEY")!, { auth: { persistSession: false } });
     const cron = req.headers.get("x-trb-cron") || "";
+    let isCron = false;
+    let callerUserId: string | null = null;
     let allowed = false;
     if (cron) {
       const { data } = await admin.from("trb_internal_secrets").select("value").eq("name", "workforce_cron_token").maybeSingle();
       allowed = !!data?.value && data.value === cron;
       if (!allowed) return json({ error: "Invalid internal token." }, 401);
+      isCron = true;
     } else {
       const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
       const caller = createClient(url, anon, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } });
       const { data: u } = await caller.auth.getUser(token);
       if (!u?.user) return json({ error: "Invalid session." }, 401);
+      callerUserId = u.user.id;
       const { data: tid } = await caller.rpc("trb_business_owner_id");
       allowed = !!tid;
       if (!allowed) return json({ error: "TRB team access is required." }, 403);
@@ -372,6 +405,12 @@ Deno.serve(async (req) => {
       const p = ap.payload || {};
       const to = String(body.to || p.email || "").trim();
       if (!/^\S+@\S+\.\S+$/.test(to)) return json({ error: "This draft has no email address. Add one or send it another way." }, 400);
+      if (ap.kind === "outreach_message") {
+        if (isCron || !callerUserId) return json({ error: "Cold prospect outreach is blocked for scheduled/background jobs. Use the authenticated owner send action." }, 403);
+        if (body.owner_send_approved !== true || body.lawful_contact_basis_verified !== true) return json({ error: "Recipient-specific owner approval and lawful-contact confirmation are required." }, 403);
+        const approvedEmail = String(p.email || "").trim().toLowerCase();
+        if (!approvedEmail || to.toLowerCase() !== approvedEmail) return json({ error: "Recipient must exactly match the reviewed prospect record." }, 403);
+      }
       const text = String(body.body || ap.body || "").trim();
       const subject = String(body.subject || p.subject || ap.title || "The Resident Bookkeeper").trim();
       const esc = (x: string) => x.replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m] as string));
@@ -384,7 +423,18 @@ Deno.serve(async (req) => {
         const attachments = (Array.isArray(body.attachments) ? body.attachments : []).filter((a: any) => a?.filename && a?.content)
           .slice(0, 5).map((a: any) => ({ filename: String(a.filename), content: String(a.content) }));
         const id = await sendEmail(admin, { to, subject, text, html, from, cc, attachments });
-        await admin.from("trb_approvals").update({ status: "done", body: text, decided_at: new Date().toISOString() }).eq("id", ap.id);
+        const sentAt = new Date().toISOString();
+        const updatedPayload = ap.kind === "outreach_message"
+          ? { ...p, owner_send_approved: true, lawful_contact_basis_verified: true, owner_send_approved_by: callerUserId, owner_send_approved_at: sentAt, sent_recipient: to }
+          : p;
+        await admin.from("trb_approvals").update({
+          status: "done", body: text, decided_at: sentAt,
+          decided_by: callerUserId || ap.decided_by || null,
+          payload: updatedPayload,
+          note: ap.kind === "outreach_message"
+            ? "Owner explicitly confirmed this recipient/action in the send dialog and attested to lawful-contact review."
+            : ap.note
+        }).eq("id", ap.id);
         await log(admin, ap.owner_id, ap.employee_id || "nani", "email_sent", "done", `Email sent to ${to}${cc.length ? " (cc " + cc.join(", ") + ")" : ""}: "${subject}"${attachments.length ? " with " + attachments.map((a: Attachment) => a.filename).join(", ") : ""}.`, { approval_id: ap.id, resend_id: id });
         return json({ ok: true, id });
       } catch (e) { return json({ error: (e as Error).message }, 502); }
