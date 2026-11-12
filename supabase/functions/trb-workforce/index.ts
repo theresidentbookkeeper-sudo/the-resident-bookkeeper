@@ -41,16 +41,19 @@ function useGemini() { return !Deno.env.get("ANTHROPIC_API_KEY") && !!geminiKey(
 async function gemini(system: string, prompt: string, search = false) {
   const key = geminiKey();
   if (!key) throw new NeedsKey("No AI key is set (ANTHROPIC_API_KEY or GEMINI_API_KEY).");
-  const models = [...new Set([Deno.env.get("GEMINI_MODEL") || "gemini-flash-lite-latest", "gemini-flash-latest"])];
+  const pick = Deno.env.get("GEMINI_MODEL") || "gemini-flash-lite-latest";
+  // Free-tier models are often busy (503): try each model up to twice.
+  const models = [pick, "gemini-3.5-flash-lite", pick, "gemini-3.5-flash-lite"];
   let last = "";
   for (const model of models) {
     const body: Record<string, unknown> = { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.7, maxOutputTokens: 4096 } };
     if (search) body.tools = [{ google_search: {} }];
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body), signal: AbortSignal.timeout(45000) }).catch((e) => new Response(JSON.stringify({ error: { message: "timed out or unreachable: " + String(e) } }), { status: 503 }));
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) }).catch((e) => new Response(JSON.stringify({ error: { message: "timed out or unreachable: " + String(e) } }), { status: 503 }));
     const data = await res.json().catch(() => ({}));
     if (res.ok) return ((data?.candidates?.[0]?.content?.parts) || []).map((p: any) => p.text || "").join("\n");
     last = `Gemini error ${res.status}: ${data?.error?.message || "unknown"}`;
     if (![404, 429, 500, 503].includes(res.status)) break;
+    await new Promise((r) => setTimeout(r, 2000));
   }
   throw new Error(last);
 }
@@ -163,7 +166,7 @@ Write posts that grow an organic audience:
 - Follows: promise ongoing value ("Follow for one bookkeeping tip every weekday").
 - Enquiries: soft CTA to DM "BOOKS" or book a free health check at ${SITE}.
 Rotate formats and goals; never repeat a recent post. No tax or legal advice beyond general education; no claims you cannot back up. If a post mentions a price, use only these: ${PRICES}`;
-  const ctx = { today: today(), zara_research: z?.proof || null, recent_posts: recent || [], instruction_from_nancy: focus || null };
+  const ctx = { today: today(), zara_research: z?.proof ? JSON.stringify(z.proof).slice(0, 3000) : null, recent_posts: (recent || []).map((r: any) => r.title), instruction_from_nancy: focus || null };
   let p: any;
   if (useGemini()) {
     const t = await gemini(system, `${JSON.stringify(ctx)}\n\nReply with ONE fenced json block matching this schema (all required fields filled): ${JSON.stringify(tool.input_schema)}`);
