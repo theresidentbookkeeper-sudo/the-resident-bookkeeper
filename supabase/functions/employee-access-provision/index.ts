@@ -31,18 +31,20 @@ Deno.serve(async(req:Request)=>{
   const sp=Number(body?.share_pct),share_pct=Number.isFinite(sp)&&sp>=0&&sp<=100?sp:30;
   if(!name||!email||!role)return json({error:"name, email and role are required."},400);
   if(!/^\S+@\S+\.\S+$/.test(email))return json({error:"Enter a valid employee email address."},400);
+  if(!businessOwnerId)return json({error:"TRB business owner could not be resolved."},500);
   const {data:existingEmployee}=await admin.from("employees").select("id,portal_user_id").ilike("email",email).maybeSingle();
   let userId=existingEmployee?.portal_user_id||null,invited=false;
   if(!userId){
-    const {data:existingUser}=await admin.auth.admin.getUserByEmail(email);
-    if(existingUser?.user)userId=existingUser.user.id;
+    // supabase-js v2 has no getUserByEmail; look the login up with a service-role-only database function
+    const {data:foundId,error:lookupError}=await admin.rpc("trb_auth_user_id_by_email",{p_email:email});
+    if(lookupError)return json({error:"Could not check for an existing login: "+lookupError.message},500);
+    if(foundId)userId=foundId as string;
     else{
       const {data:invite,error}=await admin.auth.admin.inviteUserByEmail(email,{data:{name,trb_role:role,account_type:"team"},redirectTo:`${SITE_ORIGIN}/platform`});
       if(error||!invite?.user)return json({error:error?.message||"Could not send the employee invitation."},500);
       userId=invite.user.id;invited=true;
     }
   }
-  if(!businessOwnerId)return json({error:"TRB business owner could not be resolved."},500);
   const payload:Record<string,unknown>={owner_id:businessOwnerId,name,role,phone:phone||null,email,status:"Active",portal_user_id:userId,country,specialty,share_pct,payout_currency};
   // a new person is staff unless made admin; re-inviting someone keeps their level unless one is sent
   if(!existingEmployee?.id||body?.access_level)payload.access_level=access_level;
