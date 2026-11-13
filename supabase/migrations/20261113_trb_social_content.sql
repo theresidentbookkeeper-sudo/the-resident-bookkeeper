@@ -1,0 +1,6 @@
+-- Applied to project njhohxhtqkktktngjflb on 13 Nov 2026 as migration "trb_social_content".
+-- trb_social_posts: Amara's content history (posted, scheduled, drafts) so she never repeats a post; holds IG/FB captions and comment answers.
+-- trb_social_visuals + private storage bucket "social-visuals": Manus visuals Nancy uploads for Amara (team-only access).
+-- Trigger trb_social_post_decided keeps the history in step when a post approval is approved or rejected.
+-- History was seeded from Metricool (30 Sep to 18 Nov 2026, 42 posts).
+-- See the live database for the full definitions.
