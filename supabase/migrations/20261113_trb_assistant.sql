@@ -1,0 +1,3 @@
+-- Applied 13 Nov 2026 (migrations "trb_assistant_log", "client_files_assistant_outputs").
+-- trb_assistant_log: every assistant conversion, question and review (staff read their own; owner/admins read all).
+-- client_files: category 'converted' and uploader 'assistant' allowed; clients cannot see 'converted' working files.
