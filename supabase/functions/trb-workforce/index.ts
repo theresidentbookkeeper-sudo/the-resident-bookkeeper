@@ -38,7 +38,7 @@ async function claudeTool(system: string, text: string, tool: any, max_tokens = 
 // Google's free tier terms say not to send sensitive, confidential or personal information, so no client data goes here.
 function geminiKey() { return Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY") || ""; }
 function useGemini() { return !Deno.env.get("ANTHROPIC_API_KEY") && !!geminiKey(); }
-async function gemini(system: string, prompt: string, search = false) {
+async function gemini(system: string, prompt: string, search = false, images: { mime: string; data: string }[] = []) {
   const key = geminiKey();
   if (!key) throw new NeedsKey("No AI key is set (ANTHROPIC_API_KEY or GEMINI_API_KEY).");
   const pick = Deno.env.get("GEMINI_MODEL") || "gemini-flash-lite-latest";
@@ -46,9 +46,9 @@ async function gemini(system: string, prompt: string, search = false) {
   const models = [pick, "gemini-3.5-flash-lite", pick, "gemini-3.5-flash-lite"];
   let last = "";
   for (const model of models) {
-    const body: Record<string, unknown> = { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.7, maxOutputTokens: 4096 } };
+    const body: Record<string, unknown> = { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [...images.map((i) => ({ inline_data: { mime_type: i.mime, data: i.data } })), { text: prompt }] }], generationConfig: { temperature: 0.8, maxOutputTokens: 8192 } };
     if (search) body.tools = [{ google_search: {} }];
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) }).catch((e) => new Response(JSON.stringify({ error: { message: "timed out or unreachable: " + String(e) } }), { status: 503 }));
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body), signal: AbortSignal.timeout(images.length ? 60000 : 45000) }).catch((e) => new Response(JSON.stringify({ error: { message: "timed out or unreachable: " + String(e) } }), { status: 503 }));
     const data = await res.json().catch(() => ({}));
     if (res.ok) return ((data?.candidates?.[0]?.content?.parts) || []).map((p: any) => p.text || "").join("\n");
     last = `Gemini error ${res.status}: ${data?.error?.message || "unknown"}`;
@@ -140,43 +140,99 @@ Up to 5 prospects: real small or growing BUSINESSES (not individuals) that plaus
   return summary;
 }
 
-// ---------- Amara: one post a day, for approval ----------
-async function amara(admin: SupabaseClient, owner: string, focus = "") {
-  const { data: z } = await admin.from("trb_ai_work_log").select("proof,created_at").eq("employee_id", "zara").eq("status", "done").order("created_at", { ascending: false }).limit(1).maybeSingle();
-  const { data: recent } = await admin.from("trb_approvals").select("title,payload,status").eq("kind", "social_post").order("created_at", { ascending: false }).limit(10);
-  const tool = {
-    name: "social_post", description: "One ready-to-approve post for TRB's Instagram and Facebook.",
-    input_schema: { type: "object", required: ["title", "format", "goal", "hook", "caption", "hashtags", "visual_brief", "best_time_lagos"], properties: {
-      title: { type: "string", description: "Internal name, max 8 words" },
-      format: { type: "string", enum: ["reel", "carousel", "single_image", "story"] },
-      goal: { type: "string", enum: ["views", "likes_and_saves", "follows", "enquiries"] },
-      hook: { type: "string", description: "First line / on-screen text that stops the scroll (max 12 words)" },
-      caption: { type: "string", description: "Full caption with line breaks, value first, ends with a clear call to action" },
-      hashtags: { type: "array", items: { type: "string" }, description: "5-8 relevant hashtags, mix of niche and local" },
-      slides_or_script: { type: "array", items: { type: "string" }, description: "Carousel slide texts or reel shot-by-shot script" },
-      visual_brief: { type: "string", description: "What the image/video should show, in TRB brand: cream, black, red, gold" },
-      best_time_lagos: { type: "string" },
-    } },
-  };
-  const system = `You are Amara, Social Media & Growth Manager at The Resident Bookkeeper (Instagram @theresidentbookkeeper, Facebook). Brand: premium, warm, expert; cream, black, red, touch of gold. Tagline: Accurate Records. Smarter Decisions. Stronger Business.
-Audience: small business owners in Nigeria first, also US, UK, Canada, Australia. TRB sells: ${SERVICES}.
-Write posts that grow an organic audience:
-- Views: strong 3-second hook, reels and carousels over plain images, trend-aware but on-brand.
-- Likes and saves: one genuinely useful money/bookkeeping tip a small business owner can use today; simple language; local examples (naira, POS, transfers).
-- Follows: promise ongoing value ("Follow for one bookkeeping tip every weekday").
-- Enquiries: soft CTA to DM "BOOKS" or book a free health check at ${SITE}.
-Rotate formats and goals; never repeat a recent post. No tax or legal advice beyond general education; no claims you cannot back up. If a post mentions a price, use only these: ${PRICES}`;
-  const ctx = { today: today(), zara_research: z?.proof ? JSON.stringify(z.proof).slice(0, 3000) : null, recent_posts: (recent || []).map((r: any) => r.title), instruction_from_nancy: focus || null };
-  let p: any;
+// ---------- Amara: the daily social content plan (3 posts a day, for approval) ----------
+// Follows Nancy's content rules, checks the content history so nothing repeats, writes the comment answer for
+// interactive posts, and writes one post a day around a Manus visual Nancy uploads in the portal.
+const FORM = "https://forms.gle/vV5eb9sWSehEhiDi7";
+const SOCIAL_RULES = `BRAND: The Resident Bookkeeper (TRB). Tagline: "Accurate Records. Smarter Decisions. Stronger Business." Positioning: a company that understands the money and record-keeping struggles business owners face and solves them strategically.
+TONE AND LANGUAGE: warm, confident, plain English a busy small-business owner understands. No jargon without explaining it. Short lines, white space, a check-mark list (✔) or numbered steps (1️⃣ 2️⃣) where useful, 1 to 3 emojis. For Nigerian posts use local examples (naira ₦, POS, transfers, WhatsApp orders, market traders, boutiques, restaurants, construction). For international posts use local currency and examples (no naira, no POS). Never invent statistics, clients or testimonials; label example people "(an illustrative example)". General education only, no specific tax or legal advice.
+EVERY POST must answer three things: what problem, feeling or need it addresses; how TRB helps (where it fits naturally, show the tax benefit too, e.g. "tax-ready records", "claim every allowable cost"); and what the audience should do next.
+CALLS TO ACTION: vary them. Instagram cannot take links in captions: use "Send BOOKS by DM", "tap the link in our bio", "Call or WhatsApp 0802 600 0078", "Save this", "Tag a business owner", "Comment below". Facebook can: use the Free Books Health Check form ${FORM}, Books Lite sign-up https://residentbookkeeper.com/bookslite-start?utm_source=facebook&utm_medium=social&utm_campaign=bookslite, the website residentbookkeeper.com, or the phone number. Do not put "Free Books Health Check" in every post.
+HASHTAGS: 5 to 7. Always #TheResidentBookkeeper and #Bookkeeping, then a mix such as #SmallBusiness #BusinessOwners #NigerianBusiness #SmallBusinessNigeria #CashFlow #TaxReady #BusinessHumour #BookkeepingQuiz (international posts: #SmallBusinessUK, #SmallBusinessUSA, #SmallBusinessCanada, #SmallBusinessAustralia as relevant).
+CONTENT MIX over every 30 posts: 9 educational or storytelling, 4 humour or relatable, 4 interactive (polls, quizzes, true or false, questions), 3 inspirational or emotional, 3 behind the scenes, 3 reels or short tutorials, 2 brand awareness, 2 promotional or conversion. Rotate so followers never see the same kind of post two days running.
+INTERACTIVE POSTS (quiz, poll, true or false, question) MUST come with comment_answer: the exact reply TRB posts in the comments, with the answer and a one-line explanation, plus when to post it (for example "Post at 9pm the same day"). For opinion polls and questions, write a warm reply that thanks people and gives a useful tip on the most likely answer.
+PROMOTIONAL POSTS: a price or offer post every two days at 4pm, using only the approved prices: ${PRICES}
+VISUALS: bright cream backgrounds only (no dark backgrounds), TRB colours cream, black, red and a touch of gold. Brand name and tagline only, no open-book icon, no corner badges. When people are shown, alternate men and women of different countries and ethnicities. For posts without a Manus visual, describe a simple text card that looks exactly like the Manus visuals without the picture: headline, 2 to 4 short lines, and a call-to-action button whose text varies (Get Started, Vote Now, Call Us Now, Learn More, Comment Below, Save This).
+MARKETS: Nigeria first. From 19 November 2026 roughly one post in three speaks to the US, UK, Canada or Australia.`;
+const MIX: Record<string, number> = { educational: 9, humour: 4, interactive: 4, inspirational: 3, behind_the_scenes: 3, reel_tutorial: 3, brand_awareness: 2, promotional: 2 };
+const POST_SCHEMA = `{"posts":[{"title":"internal name, max 8 words","category":"one of: ${Object.keys(MIX).join(", ")}","format":"single_image | carousel | reel | story | poll | quiz","goal":"views | likes_and_saves | follows | enquiries","market":"Nigeria | International","hook":"first line that stops the scroll, max 14 words","caption_instagram":"full Instagram caption including the hook as the first line, Instagram-style call to action, then the hashtags","caption_facebook":"the same post adapted for Facebook (links allowed), then the hashtags","comment_answer":"required for interactive posts, else empty string","problem":"the problem, feeling or need","how_trb_helps":"one line","next_step":"what the audience should do","visual_brief":"for a Manus visual: one line on how the caption uses it; otherwise the text card: headline / lines / button text","slides_or_script":["carousel slide texts or reel shot list, if any"]}]}`;
+
+async function aiJson(system: string, prompt: string, images: { mime: string; data: string }[] = []) {
   if (useGemini()) {
-    const t = await gemini(system, `${JSON.stringify(ctx)}\n\nReply with ONE fenced json block matching this schema (all required fields filled): ${JSON.stringify(tool.input_schema)}`);
-    p = lastJson(t);
-    for (const k of tool.input_schema.required) if (p[k] === undefined || p[k] === "") throw new Error(`Gemini post draft is missing "${k}".`);
-  } else p = await claudeTool(system, JSON.stringify(ctx), tool, 3000);
-  const body = `${p.hook}\n\n${p.caption}\n\n${(p.hashtags || []).map((h: string) => (h.startsWith("#") ? h : "#" + h)).join(" ")}`;
-  const { data: ap } = await admin.from("trb_approvals").insert({ owner_id: owner, employee_id: "amara", kind: "social_post", title: p.title, body, payload: p }).select("id").single();
-  const summary = `Drafted today's ${p.format} ("${p.title}", goal: ${p.goal}). Waiting for your approval.`;
-  await log(admin, owner, "amara", "daily_post", "done", summary, { approval_id: ap?.id, format: p.format, goal: p.goal });
+    const t = await gemini(system, prompt, false, images);
+    return lastJson(t);
+  }
+  const content: any[] = images.map((i) => ({ type: "image", source: { type: "base64", media_type: i.mime, data: i.data } }));
+  content.push({ type: "text", text: prompt });
+  const data = await claude({ max_tokens: 6000, system, messages: [{ role: "user", content }] });
+  return lastJson((data.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n"));
+}
+
+async function amara(admin: SupabaseClient, owner: string, focus = "") {
+  const lagosNow = new Date(Date.now() + 3600e3);
+  const ymd = (d: Date) => d.toISOString().slice(0, 10);
+  // History: everything posted, scheduled or drafted (rejected drafts excluded).
+  const { data: hist } = await admin.from("trb_social_posts").select("planned_for,created_at,category,format,hook,topic,status").eq("owner_id", owner).neq("status", "rejected").order("planned_for", { ascending: false, nullsFirst: false }).limit(120);
+  const H = hist || [];
+  // Pick the first day from tomorrow that has fewer than 3 posts planned.
+  let day = "";
+  const taken: string[] = [];
+  for (let i = 1; i <= 21 && !day; i++) {
+    const d = ymd(new Date(lagosNow.getTime() + i * 864e5));
+    const onDay = H.filter((h: any) => h.planned_for && ymd(new Date(Date.parse(h.planned_for) + 3600e3)) === d);
+    if (onDay.length < 3) { day = d; taken.push(...onDay.map((h: any) => new Date(Date.parse(h.planned_for) + 3600e3).toISOString().slice(11, 16))); }
+  }
+  if (!day) { const s = "The content plan is full for the next three weeks."; await log(admin, owner, "amara", "daily_post", "skipped", s); return s; }
+  const lastPromo = H.find((h: any) => h.category === "promotional");
+  const promoDue = !lastPromo || Date.parse(day + "T16:00:00+01:00") - Date.parse(lastPromo.planned_for || lastPromo.created_at) >= 2 * 864e5 - 3600e3;
+  const n = Math.max(1, 3 - taken.length);
+  let free = ["08:00", "13:00", "19:00"].filter((t) => !taken.includes(t));
+  if (promoDue && !taken.includes("16:00")) free = [...free.slice(0, n - 1), "16:00"];
+  const slots = free.slice(0, n).sort();
+  // Mix: what is under-represented in the last 30 posts.
+  const last30 = H.slice(0, 30);
+  const need = Object.entries(MIX).map(([k, n]) => [k, n - last30.filter((h: any) => h.category === k).length] as [string, number]).sort((a, b) => b[1] - a[1]);
+  const lastCats = H.slice(0, 3).map((h: any) => h.category);
+  const wanted = need.map(([k]) => k).filter((k) => k !== "promotional" && !lastCats.includes(k));
+  // A Manus visual waiting?
+  const { data: vis } = await admin.from("trb_social_visuals").select("*").eq("owner_id", owner).eq("status", "new").order("created_at").limit(1).maybeSingle();
+  const images: { mime: string; data: string }[] = [];
+  if (vis) {
+    const dl = await admin.storage.from("social-visuals").download(vis.storage_path);
+    if (dl.data && dl.data.size < 15e6 && /^image\//.test(dl.data.type || "image/png")) {
+      const buf = new Uint8Array(await dl.data.arrayBuffer());
+      let bin = ""; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+      images.push({ mime: dl.data.type || "image/png", data: btoa(bin) });
+    }
+  }
+  const plan = slots.map((t, i) => ({ time_lagos: t, category: t === "16:00" ? "promotional" : wanted[i] || need[0][0], uses_manus_visual: !!images.length && i === 0 }));
+  const international = day >= "2026-11-19";
+  const system = `You are Amara, Social Media & Growth Manager at The Resident Bookkeeper (Instagram @theresidentbookkeeper and Facebook). You write the daily posts Nancy approves and schedules.\n${SOCIAL_RULES}`;
+  const prompt = `Write the posts for ${day} (Lagos time). Today is ${ymd(lagosNow)}.
+Slots and categories to fill: ${JSON.stringify(plan)}.
+${images.length ? `The attached image is a Manus visual Nancy made for the first slot${vis?.note ? ` (her note: ${vis.note})` : ""}. Read the text and picture in it carefully and write that post around exactly what the visual says. Do not describe a new design for it; you may change its category to fit the visual.` : "No Manus visual is waiting, so every post needs a text-card visual_brief."}
+${international ? "International phase is on: make one of these posts speak to the US, UK, Canada or Australia." : "Nigerian market only for now."}
+${focus ? `Instruction from Nancy: ${focus}\n` : ""}DO NOT REPEAT these recent and planned posts (hooks and topics), and do not reuse their angle:
+${H.slice(0, 80).map((h: any) => `- [${h.category}] ${h.hook}${h.topic ? " / " + h.topic : ""}`).join("\n")}
+Reply with ONE fenced json block exactly in this shape, one entry per slot in the same order: ${POST_SCHEMA}`;
+  const out = await aiJson(system, prompt, images);
+  const posts = (out.posts || []).slice(0, plan.length);
+  if (!posts.length) throw new Error("Amara's draft came back empty.");
+  const made: string[] = [];
+  for (let i = 0; i < posts.length; i++) {
+    const p = posts[i], slot = plan[i];
+    for (const k of ["hook", "caption_instagram", "caption_facebook"]) if (!p[k]) throw new Error(`Post draft is missing "${k}".`);
+    if (["interactive"].includes(p.category) && !p.comment_answer) p.comment_answer = "Thank everyone who answered, then share the answer and one useful tip.";
+    const when = `${day}T${slot.time_lagos}:00+01:00`;
+    const useVis = slot.uses_manus_visual && vis;
+    const payload = { ...p, best_time_lagos: `${day} ${slot.time_lagos}`, planned_for: when, visual_id: useVis ? vis.id : null, storage_path: useVis ? vis.storage_path : null, visual_file: useVis ? vis.file_name : null };
+    const { data: ap } = await admin.from("trb_approvals").insert({ owner_id: owner, employee_id: "amara", kind: "social_post", title: `${day.slice(5)} ${slot.time_lagos} · ${p.title || p.hook}`, body: p.caption_instagram, payload }).select("id").single();
+    await admin.from("trb_social_posts").insert({ owner_id: owner, planned_for: when, category: p.category, format: p.format, hook: p.hook, topic: p.problem || p.title, caption_instagram: p.caption_instagram, caption_facebook: p.caption_facebook, comment_answer: p.comment_answer || null, visual_id: useVis ? vis.id : null, approval_id: ap?.id, source: "amara", status: "draft" });
+    if (useVis) await admin.from("trb_social_visuals").update({ status: "used", used_by: ap?.id }).eq("id", vis.id);
+    made.push(`${slot.time_lagos} ${p.category}${useVis ? " (Manus visual)" : ""}`);
+  }
+  const summary = `Drafted ${made.length} post(s) for ${day}: ${made.join(", ")}. Waiting for your approval.${vis ? "" : " No Manus visual was waiting: upload one in AI Workforce > Amara's studio."}`;
+  await log(admin, owner, "amara", "daily_post", "done", summary, { day, posts: made });
   return summary;
 }
 
