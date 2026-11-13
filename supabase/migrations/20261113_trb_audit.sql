@@ -1,0 +1,9 @@
+-- Applied to project njhohxhtqkktktngjflb on 13 Nov 2026 as migration "trb_audit" (+ trb_audit_row update).
+-- trb_audit_log: sign-ins, sign-outs, page views, downloads/uploads, and every insert/update/delete people make
+--   on business tables (trigger private.trb_audit_row on clients, client_files, client_reports, client_report_files,
+--   client_report_notes, client_document_requests, client_assignments, employees, invoices, expenses, leads, quotes,
+--   sales_followups, trb_approvals, trb_social_visuals, staff_payouts, rb_app_records, trb_ai_instructions).
+--   Repeated saves of the same record within 2 minutes count once. AI/system jobs (no signed-in user) are not logged here.
+-- trb_presence: last seen / signed out per person (heartbeat every 2 minutes from assets/audit.js).
+-- public.trb_audit(event, area, detail, ref, signed_in_at): the only way pages write to the log (login logged once per sign-in).
+-- Read access: owner and admins only (trb_business_owner_id()).

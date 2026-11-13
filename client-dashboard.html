@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/trb-logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script><script src="/assets/audit.js"></script>
 <style>
 :root{--ink:#14110E;--paper:#F5EBD6;--card:#FBF6EA;--mist:#EBDFC6;--line:#D9CCB0;--mute:#5A5247;--red:#B8112B;--red-d:#930D22;--gold:#A67C1E;--ok:#2F6B45}
 *{box-sizing:border-box}
@@ -155,7 +155,7 @@ async function boot(){
   const {data:c,error}=await sb.from('clients').select('*').eq('portal_user_id',me.id).maybeSingle();
   if(!error&&c&&c.access_type==='bookslite')return location.replace('/bookslite');
   if(error||!c){await sb.auth.signOut();return location.replace('/platform')}
-  client=c;$('who').textContent=me.email;$('clientName').textContent=c.name;
+  client=c;trbAudit.start(sb,'client portal');$('who').textContent=me.email;$('clientName').textContent=c.name;
   const h=new Date().getHours();$('greet').textContent=(h<12?'Good morning':h<17?'Good afternoon':'Good evening')+(c.contact_name?', '+c.contact_name.split(' ')[0]:'')+'.';
   const pm=new Date();pm.setDate(1);pm.setMonth(pm.getMonth()-1);$('upMonth').value=pm.toISOString().slice(0,7);
   sb.rpc('trb_business_card').then(r=>{biz=r.data||{}});
@@ -237,7 +237,7 @@ function showDoc(id,receipt){
 $('modal').onclick=e=>{if(e.target.id==='modal')$('modal').classList.add('hidden')};
 
 async function openFile(path,btn){btn.disabled=true;const w=window.open('','_blank');const r=await sb.storage.from('client-files').createSignedUrl(path,300);btn.disabled=false;if(r.error){w&&w.close();return alert('Could not open this file: '+r.error.message)}if(w)w.location=r.data.signedUrl;else location.href=r.data.signedUrl}
-$('out').onclick=async()=>{await sb.auth.signOut();location.replace('/platform')};
+$('out').onclick=async()=>{await trbAudit.signOut();location.replace('/platform')};
 boot();
 </script>
 </body>
