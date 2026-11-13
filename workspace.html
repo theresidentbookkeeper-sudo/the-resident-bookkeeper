@@ -73,9 +73,15 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);outline-of
 </head>
 <body>
 <header class="top"><div class="in"><a class="brand" href="/workspace"><img src="/assets/trb-icon-1024.png" alt=""><span><b>The Resident Bookkeeper</b><small>Team workspace</small></span></a><div class="who"><span id="who"></span><button class="ghost sm" id="out">Sign out</button></div></div></header>
-<nav class="tabs"><div class="in"><button class="on" data-t="clients">My clients</button><button data-t="mail">Mail <span class="count hidden" id="mCount"></span></button><button data-t="earn">My earnings</button><button data-t="guide">How we work</button></div></nav>
+<nav class="tabs"><div class="in"><button class="on" data-t="clients">My clients</button><button data-t="asst">Assistant</button><button data-t="mail">Mail <span class="count hidden" id="mCount"></span></button><button data-t="earn">My earnings</button><button data-t="guide">How we work</button></div></nav>
 <main>
 <section id="t-clients"><div class="eyebrow">Your assigned clients</div><h1 id="hi">Welcome</h1><p class="muted">Prepare each month's reports here and submit them to Nancy. Clients only see a report after Nancy reviews and sends it.</p><div id="cards" class="grid3"></div><div id="detail"></div></section>
+<section id="t-asst" hidden><div class="eyebrow">TRB Assistant</div><h1>Assistant</h1><p class="muted">Your AI helper for client work: turn PDF bank statements into Excel for Zoho or QuickBooks, ask questions about a client's records, and get your reports reviewed before you submit them. It only works on your assigned clients, and everything is saved so Nancy can see it. <b>Use this, never ChatGPT or other outside AI tools, for client information.</b></p>
+<div class="card"><label>Client</label><select id="aCl"></select>
+<h2 style="margin-top:18px">Client files</h2><p class="muted small">Tick the files you want the assistant to work on.</p><div id="aFiles"></div>
+<div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px"><button class="red" id="aConv">Convert ticked PDF statements to Excel</button><button class="ghost" id="aRev">Review ticked files</button></div><div id="aOut"></div>
+<details style="margin-top:16px"><summary class="muted" style="cursor:pointer">Add a file the client sent you another way (email, WhatsApp, Drive)</summary><div class="grid2" style="margin-top:8px"><div><label>File(s)</label><input type="file" id="aUp" multiple accept=".pdf,.xlsx,.xls,.csv,.jpg,.jpeg,.png"></div><div><label>What is it?</label><select id="aUpCat"><option value="bank_statement">Bank statement</option><option value="receipt_or_invoice">Receipt or invoice</option><option value="other">Other</option></select></div></div><button class="ghost" id="aUpBtn" style="margin-top:8px">Add to client files</button></details></div>
+<div class="card"><h2>Ask the assistant</h2><p class="muted small">Ask about this client's records, for example "Which transactions in March look like owner drawings?" or "What is still missing for the 2025 clean-up?". Tick files above to include them in the question.</p><textarea id="aQ" placeholder="Type your question"></textarea><div class="row" style="margin-top:10px"><button class="red" id="aAsk">Ask</button></div><div id="aChat" style="margin-top:14px"></div></div></section>
 <section id="t-mail" hidden><div class="eyebrow">Your work email</div><h1>Mail</h1><p class="muted" id="mAddr">Loading…</p>
 <div class="row" style="margin-top:12px"><button class="red" id="mNew">New email</button><button class="ghost" data-mf="in">Inbox</button><button class="ghost" data-mf="out">Sent</button><button class="ghost" data-mf="done">Done</button></div>
 <div id="mCompose"></div><div class="card"><div id="mList"></div></div><div id="mView"></div></section>
@@ -94,7 +100,7 @@ const ST={preparing:['Preparing','p-mute'],for_review:['With client','p-info'],c
 const CAT={bank_statement:'Bank statement',requested_document:'Requested document',receipt_or_invoice:'Receipts / invoices',other:'Other'};
 const fmtCur=(v,c)=>new Intl.NumberFormat(c==='NGN'||!c?'en-NG':'en',{style:'currency',currency:c||'NGN',maximumFractionDigits:2}).format(Number(v||0));
 let ME=null,CL=[],AS=[];
-document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-t]').forEach(x=>x.classList.toggle('on',x===b));['clients','mail','earn','guide'].forEach(t=>$('t-'+t).hidden=t!==b.dataset.t);trbAudit.log('view',b.textContent.trim());if(b.dataset.t==='earn')earn();if(b.dataset.t==='mail')mailLoad()});
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-t]').forEach(x=>x.classList.toggle('on',x===b));['clients','asst','mail','earn','guide'].forEach(t=>$('t-'+t).hidden=t!==b.dataset.t);if(b.dataset.t==='asst')aInit();trbAudit.log('view',b.textContent.trim());if(b.dataset.t==='earn')earn();if(b.dataset.t==='mail')mailLoad()});
 $('out').onclick=async()=>{await trbAudit.signOut();location.replace('/platform')};
 async function signed(p){const r=await sb.storage.from('client-files').createSignedUrl(p,300);if(r.error)throw r.error;return r.data.signedUrl}
 async function boot(){
@@ -102,7 +108,7 @@ async function boot(){
  const e=await sb.from('employees').select('*').eq('portal_user_id',session.user.id).eq('status','Active').maybeSingle();
  if(!e.data)return location.replace('/platform');if(e.data.access_level==='admin')return location.replace('/platform');
  ME=e.data;trbAudit.start(sb,'workspace');$('who').textContent=ME.name;$('hi').textContent='Welcome, '+ME.name.split(' ')[0];
- const [a,c]=await Promise.all([sb.from('client_assignments').select('*'),sb.from('clients').select('id,name,contact_name,country,product_name,business_type')]);
+ const [a,c]=await Promise.all([sb.from('client_assignments').select('*'),sb.from('clients').select('id,owner_id,name,contact_name,country,product_name,business_type')]);
  AS=a.data||[];CL=c.data||[];await cards();mailCount();
 }
 async function cards(){
@@ -193,6 +199,34 @@ function compose(o={}){
 }
 $('mNew').onclick=()=>compose();
 document.querySelectorAll('[data-mf]').forEach(b=>b.onclick=()=>{MF=b.dataset.mf;$('mView').innerHTML='';mailLoad()});
+
+// ---------- TRB Assistant ----------
+let aF=[],aR=[];
+const aCall=async(body)=>{const {data:{session}}=await sb.auth.getSession();const r=await fetch(U+'/functions/v1/workspace-assistant',{method:'POST',headers:{Authorization:'Bearer '+session.access_token,apikey:K,'Content-Type':'application/json'},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok){const e=Error(j.error||'The assistant could not finish');e.needsKey=j.needs_key;throw e}return j};
+function aInit(){if(!$('aCl').options.length){$('aCl').innerHTML=CL.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('')||'<option value="">No clients assigned yet</option>';$('aCl').onchange=aLoad}aLoad()}
+async function aLoad(){const cid=$('aCl').value;$('aOut').innerHTML='';if(!cid){$('aFiles').innerHTML='<div class="empty">Nancy has not assigned you a client yet.</div>';return}
+ const [f,r,l]=await Promise.all([sb.from('client_files').select('id,file_name,category,period_start,created_at,uploader').eq('client_id',cid).order('created_at',{ascending:false}).limit(200),sb.from('client_report_files').select('id,file_name,kind,version,created_at,report_id').eq('client_id',cid).order('created_at',{ascending:false}).limit(50),sb.from('trb_assistant_log').select('*').eq('client_id',cid).eq('user_id',(await sb.auth.getUser()).data.user.id).order('created_at',{ascending:false}).limit(20)]);
+ aF=f.data||[];aR=r.data||[];
+ const cat={bank_statement:'Bank statement',requested_document:'Requested document',receipt_or_invoice:'Receipt / invoice',other:'Other',converted:'Converted by assistant'};
+ const row=(x,kind,label)=>'<label class="item" style="cursor:pointer;justify-content:flex-start;gap:12px"><input type="checkbox" data-af="'+kind+':'+x.id+'" style="width:auto"><span style="flex:1"><b>'+esc(x.file_name)+'</b><span class="muted small">'+esc(label)+' · '+new Date(x.created_at).toLocaleDateString('en-GB')+'</span></span>'+(kind==='f'&&x.category==='converted'?'<button class="ghost sm" data-adl="'+x.id+'">Download</button>':'')+'</label>';
+ $('aFiles').innerHTML=(aF.length||aR.length)?aF.map(x=>row(x,'f',cat[x.category]||x.category||'File')).join('')+aR.map(x=>row(x,'r','Your report file, version '+(x.version||1))).join(''):'<div class="empty">No files for this client yet. Add one below, or ask the client to upload in their portal.</div>';
+ document.querySelectorAll('[data-adl]').forEach(b=>b.onclick=async e=>{e.preventDefault();const x=aF.find(y=>y.id===b.dataset.adl);const {data:row}=await sb.from('client_files').select('storage_path').eq('id',x.id).single();const r=await sb.storage.from('client-files').createSignedUrl(row.storage_path,300,{download:x.file_name});if(r.error)return toast(r.error.message);location.href=r.data.signedUrl});
+ const L=l.data||[];$('aChat').innerHTML=L.filter(x=>x.action!=='convert').map(x=>'<div style="border-top:1px solid var(--line);padding:12px 0"><div class="muted small">'+new Date(x.created_at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'</div><b>'+esc(x.question||'')+'</b><div style="white-space:pre-wrap;margin-top:6px">'+esc(x.answer||'')+'</div></div>').join('')}
+const aPicked=()=>{const f=[],r=[];document.querySelectorAll('[data-af]:checked').forEach(c=>{const [k,id]=c.dataset.af.split(':');(k==='f'?f:r).push(id)});return {file_ids:f,report_file_ids:r}};
+$('aConv').onclick=async()=>{const p=aPicked(),pdf=p.file_ids.filter(id=>/\.pdf$/i.test(aF.find(x=>x.id===id)?.file_name||''));if(!pdf.length)return toast('Tick one or more PDF bank statements');const b=$('aConv');b.disabled=true;$('aOut').innerHTML='<div class="msg">Reading '+pdf.length+' statement'+(pdf.length>1?'s':'')+'…</div>';
+ try{const j=await aCall({action:'convert',client_id:$('aCl').value,file_ids:pdf});
+  $('aOut').innerHTML='<div class="msg ok"><b>Done.</b> <a href="'+j.url+'">Download '+esc(j.file_name)+'</a> (also saved in this client\'s files).<ul style="margin:8px 0 0">'+j.summary.map(s=>'<li>'+esc(s.Statement)+': '+s.Lines+' lines, '+(s.Balanced==='YES'?'balances with the bank':'<b>does not balance, check the lines marked</b>')+'</li>').join('')+'</ul>'+(j.problems.length?'<p style="margin:8px 0 0"><b>To check:</b><br>'+j.problems.map(esc).join('<br>')+'</p>':'')+'<p class="small" style="margin:8px 0 0">The "All transactions" sheet is ready to import into Zoho Books or QuickBooks: date, description, money out, money in.</p></div>';aLoad().then(()=>{})}
+ catch(e){$('aOut').innerHTML='<div class="msg err">'+esc(e.message)+'</div>'}finally{b.disabled=false}};
+async function aAsk(action){const p=aPicked(),q=$('aQ').value.trim();if(action==='ask'&&q.length<3)return toast('Type your question');if(action==='review'&&!p.file_ids.length&&!p.report_file_ids.length)return toast('Tick the report files to review');
+ const b=action==='ask'?$('aAsk'):$('aRev');b.disabled=true;const box=action==='ask'?$('aChat'):$('aOut');const wait=document.createElement('div');wait.className='msg';wait.textContent=action==='ask'?'Thinking…':'Reviewing… this can take up to a minute.';box.prepend(wait);
+ try{const j=await aCall({action,client_id:$('aCl').value,question:q,...p});wait.remove();if(action==='ask')$('aQ').value='';
+  const el=document.createElement('div');el.style.cssText='border-top:1px solid var(--line);padding:12px 0';el.innerHTML='<b>'+esc(action==='review'?'Review of the ticked files':q)+'</b><div style="white-space:pre-wrap;margin-top:6px">'+esc(j.answer)+'</div>';box.prepend(el)}
+ catch(e){wait.className='msg err';wait.textContent=e.message}finally{b.disabled=false}}
+$('aAsk').onclick=()=>aAsk('ask');$('aRev').onclick=()=>aAsk('review');
+$('aUpBtn').onclick=async()=>{const files=[...$('aUp').files],cid=$('aCl').value;if(!files.length||!cid)return toast('Choose the file first');const b=$('aUpBtn');b.disabled=true;
+ try{const own=CL.find(c=>c.id===cid)?.owner_id;for(const f of files){if(f.size>20e6)throw Error(f.name+' is larger than 20 MB');const path=cid+'/team/'+Date.now()+'-'+f.name.replace(/[^A-Za-z0-9._-]/g,'_');const u=await sb.storage.from('client-files').upload(path,f);if(u.error)throw u.error;
+  const r=await sb.from('client_files').insert({owner_id:own,client_id:cid,category:$('aUpCat').value,file_name:f.name,storage_path:path,uploaded_by:ME.portal_user_id,uploader:'team',note:'Added by '+ME.name})
+  ;if(r.error)throw r.error}$('aUp').value='';toast('Added');aLoad()}catch(e){toast(e.message)}finally{b.disabled=false}};
 boot();
 </script>
 </body>
