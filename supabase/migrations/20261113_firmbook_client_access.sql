@@ -1,0 +1,7 @@
+-- Applied 13 Nov 2026 as migration "firmbook_client_access".
+-- rb_client_grants(user_id, client_id): which FirmBook clients a team login may open.
+-- rb_private.can_client(); trigger rb_fill_client_id fills rb_app_records.client_id from data.clientId or "<clientId>_..." ids.
+-- Policies on rb_app_records: owner all; team reads only granted clients' records plus firm-wide settings (client_id null),
+--   writes only granted clients' records (no new clients, no firm settings).
+-- public.rb_firmbook_overview() and public.rb_firmbook_set_access(email, client_ids, remove) for the portal Team page (owner/admin only).
+-- Tested 13 Nov 2026 as a simulated team login: saw 1 client's records only; write to another client blocked; own client allowed.
