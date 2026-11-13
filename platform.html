@@ -168,7 +168,7 @@ async function load(){aiLoad();
  $('quoteRows').innerHTML=data.quotes.map(x=>'<tr><td>'+esc(x.package||'')+'</td><td>'+esc(x.scope||'')+'</td><td>'+money(x.amount)+'</td><td><span class="pill">'+esc(x.status)+'</span></td></tr>').join('')||'<tr><td colspan="4">No quotes.</td></tr>';
  $('clientRows').innerHTML=data.clients.map(x=>'<tr class="bl-row" data-cl="'+x.id+'"><td>'+esc(x.name)+'</td><td>'+esc(x.contact_name)+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.access_type||'regular')+'</td></tr>').join('')||'<tr><td colspan="4">No clients.</td></tr>';document.querySelectorAll('[data-cl]').forEach(t=>t.onclick=()=>clDetail(t.dataset.cl));clNeeds();
  const out=data.invoices.filter(x=>!['Paid','Cancelled'].includes(x.status));
- $('humans').innerHTML=data.humans.map(x=>'<div class="task"><b>'+esc(x.name)+'</b><div class="muted">'+esc(x.role||'')+' · '+esc(x.email||'')+' · '+esc(x.status||'')+(x.portal_user_id?' · Login linked':' · Invite pending')+'</div></div>').join('')||'<p class="muted">No human employees.</p>';
+ // The Team list is drawn by empLoad() (clickable names, work email, assignments).
  $('integrations').innerHTML=data.ints.map(x=>'<div class="card section" style="display:flex;justify-content:space-between;gap:10px"><div><b>'+esc(x.provider)+'</b><div class="muted">'+esc(x.capability)+'</div></div><div><span class="dot '+(x.status==='connected'?'on':'')+'"></span> '+esc(x.status.replace('_',' '))+'</div></div>').join('');
  $('naniAttention').innerHTML=blocked.map(task).join('')||'<p class="muted">No exceptions.</p>';bindTasks();
  $('runs').innerHTML=data.runs.map(x=>'<div class="task"><b>'+esc(x.run_type)+'</b><div class="muted">'+esc(x.status)+' · '+date(x.started_at)+'</div></div>').join('')||'<p class="muted">No runs yet.</p>';
