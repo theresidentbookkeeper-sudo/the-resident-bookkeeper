@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/trb-logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script><script src="/assets/audit.js"></script>
 <style>
 :root{--ink:#14110E;--paper:#F5EBD6;--card:#FBF6EA;--mist:#EBDFC6;--line:#D9CCB0;--mute:#5A5247;--red:#B8112B;--red-d:#930D22;--gold:#A67C1E;--ok:#2F6B45}
 *{box-sizing:border-box}
@@ -94,14 +94,14 @@ const ST={preparing:['Preparing','p-mute'],for_review:['With client','p-info'],c
 const CAT={bank_statement:'Bank statement',requested_document:'Requested document',receipt_or_invoice:'Receipts / invoices',other:'Other'};
 const fmtCur=(v,c)=>new Intl.NumberFormat(c==='NGN'||!c?'en-NG':'en',{style:'currency',currency:c||'NGN',maximumFractionDigits:2}).format(Number(v||0));
 let ME=null,CL=[],AS=[];
-document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-t]').forEach(x=>x.classList.toggle('on',x===b));['clients','mail','earn','guide'].forEach(t=>$('t-'+t).hidden=t!==b.dataset.t);if(b.dataset.t==='earn')earn();if(b.dataset.t==='mail')mailLoad()});
-$('out').onclick=async()=>{await sb.auth.signOut();location.replace('/platform')};
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-t]').forEach(x=>x.classList.toggle('on',x===b));['clients','mail','earn','guide'].forEach(t=>$('t-'+t).hidden=t!==b.dataset.t);trbAudit.log('view',b.textContent.trim());if(b.dataset.t==='earn')earn();if(b.dataset.t==='mail')mailLoad()});
+$('out').onclick=async()=>{await trbAudit.signOut();location.replace('/platform')};
 async function signed(p){const r=await sb.storage.from('client-files').createSignedUrl(p,300);if(r.error)throw r.error;return r.data.signedUrl}
 async function boot(){
  const {data:{session}}=await sb.auth.getSession();if(!session)return location.replace('/platform');
  const e=await sb.from('employees').select('*').eq('portal_user_id',session.user.id).eq('status','Active').maybeSingle();
  if(!e.data)return location.replace('/platform');if(e.data.access_level==='admin')return location.replace('/platform');
- ME=e.data;$('who').textContent=ME.name;$('hi').textContent='Welcome, '+ME.name.split(' ')[0];
+ ME=e.data;trbAudit.start(sb,'workspace');$('who').textContent=ME.name;$('hi').textContent='Welcome, '+ME.name.split(' ')[0];
  const [a,c]=await Promise.all([sb.from('client_assignments').select('*'),sb.from('clients').select('id,name,contact_name,country,product_name,business_type')]);
  AS=a.data||[];CL=c.data||[];await cards();mailCount();
 }

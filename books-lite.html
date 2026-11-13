@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/trb-logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script><script src="/assets/audit.js"></script>
 <style>
 :root{--ink:#14110E;--paper:#F5EBD6;--card:#FBF6EA;--mist:#EBDFC6;--line:#D9CCB0;--mute:#5A5247;--red:#B8112B;--red-d:#930D22;--gold:#A67C1E;--ok:#2F6B45}
 *{box-sizing:border-box}
@@ -149,7 +149,7 @@ async function call(body){const r=await fetch(U+'/functions/v1/bookslite-nora',{
 
 async function boot(){
   const s=await sb.auth.getSession();session=s.data.session;
-  if(!session)return location.replace('/platform');
+  if(!session)return location.replace('/platform');trbAudit.start(sb,'Books Lite');
   const b=await sb.from('books_lite_businesses').select('*').eq('owner_id',session.user.id).maybeSingle();
   if(!b.data){$('gate').innerHTML='<h2>No Books Lite workspace yet</h2><p class="muted">Your account is not linked to Books Lite. If you have paid, please <a href="https://wa.me/2348026000078">message us on WhatsApp</a> and we will sort it out.</p><p><a href="/platform">Back to sign in</a></p>';return}
   biz=b.data;$('bizName').textContent=biz.business_name;$('who').textContent=session.user.email;
@@ -222,7 +222,7 @@ $('upForm').onsubmit=async e=>{
     $('upForm').reset();$('fileLabel').textContent='Choose your statement file';$('month').value=mo;await loadAll();
   }catch(err){msg('err',err.message)}finally{$('upBtn').disabled=false}
 };
-$('out').onclick=async()=>{await sb.auth.signOut();location.replace('/platform')};
+$('out').onclick=async()=>{await trbAudit.signOut();location.replace('/platform')};
 boot();
 </script>
 </body>
