@@ -73,11 +73,14 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);outline-of
 </head>
 <body>
 <header class="top"><div class="in"><a class="brand" href="/workspace"><img src="/assets/trb-icon-1024.png" alt=""><span><b>The Resident Bookkeeper</b><small>Team workspace</small></span></a><div class="who"><span id="who"></span><button class="ghost sm" id="out">Sign out</button></div></div></header>
-<nav class="tabs"><div class="in"><button class="on" data-t="clients">My clients</button><button data-t="earn">My earnings</button><button data-t="guide">How we work</button></div></nav>
+<nav class="tabs"><div class="in"><button class="on" data-t="clients">My clients</button><button data-t="mail">Mail <span class="count hidden" id="mCount"></span></button><button data-t="earn">My earnings</button><button data-t="guide">How we work</button></div></nav>
 <main>
 <section id="t-clients"><div class="eyebrow">Your assigned clients</div><h1 id="hi">Welcome</h1><p class="muted">Prepare each month's reports here and submit them to Nancy. Clients only see a report after Nancy reviews and sends it.</p><div id="cards" class="grid3"></div><div id="detail"></div></section>
+<section id="t-mail" hidden><div class="eyebrow">Your work email</div><h1>Mail</h1><p class="muted" id="mAddr">Loading…</p>
+<div class="row" style="margin-top:12px"><button class="red" id="mNew">New email</button><button class="ghost" data-mf="in">Inbox</button><button class="ghost" data-mf="out">Sent</button><button class="ghost" data-mf="done">Done</button></div>
+<div id="mCompose"></div><div class="card"><div id="mList"></div></div><div id="mView"></div></section>
 <section id="t-earn" hidden><div class="eyebrow">Your share</div><h1>My earnings</h1><p class="muted">You earn your share of each client's fee once the client has paid and your reports passed review. Payments made to you show here.</p><div class="card"><h2>Clients you look after</h2><div id="mine"></div></div><div class="card"><h2>Payments received</h2><div id="paid"></div></div></section>
-<section id="t-guide" hidden><div class="eyebrow">The TRB way</div><h1>How we work</h1><div class="card"><div class="item"><span><b>Reports ready for review</b><span class="muted">Within 7 working days of complete records</span></span></div><div class="item"><span><b>Reply to a client</b><span class="muted">Within 1 working day, only through this portal, TRB email or TRB WhatsApp</span></span></div><div class="item"><span><b>Fix review comments</b><span class="muted">Within 3 working days</span></span></div><div class="item"><span><b>File names</b><span class="muted">ClientName_Report_YYYY-MM_v1, for example AdaFoods_PL_2026-10_v1</span></span></div><div class="item"><span><b>Before you submit</b><span class="muted">Every account reconciled to the statement · no uncategorised items · suspense cleared or explained · tax schedule tied to the ledger · notes to the client written</span></span></div><div class="item"><span><b>Client data</b><span class="muted">Never download to your phone or personal storage, never paste into AI tools, report any loss to Nancy within 24 hours</span></span></div></div></section>
+<section id="t-guide" hidden><div class="eyebrow">The TRB way</div><h1>How we work</h1><div class="card"><div class="item"><span><b>Reports ready for review</b><span class="muted">Within 7 working days of complete records</span></span></div><div class="item"><span><b>Reply to a client</b><span class="muted">Within 1 working day, only through this portal, your TRB work email (Mail tab) or TRB WhatsApp</span></span></div><div class="item"><span><b>Fix review comments</b><span class="muted">Within 3 working days</span></span></div><div class="item"><span><b>File names</b><span class="muted">ClientName_Report_YYYY-MM_v1, for example AdaFoods_PL_2026-10_v1</span></span></div><div class="item"><span><b>Before you submit</b><span class="muted">Every account reconciled to the statement · no uncategorised items · suspense cleared or explained · tax schedule tied to the ledger · notes to the client written</span></span></div><div class="item"><span><b>Client data</b><span class="muted">Never download to your phone or personal storage, never paste into AI tools, report any loss to Nancy within 24 hours</span></span></div></div></section>
 </main>
 <div class="toast" id="toast"></div>
 <script>
@@ -91,7 +94,7 @@ const ST={preparing:['Preparing','p-mute'],for_review:['With client','p-info'],c
 const CAT={bank_statement:'Bank statement',requested_document:'Requested document',receipt_or_invoice:'Receipts / invoices',other:'Other'};
 const fmtCur=(v,c)=>new Intl.NumberFormat(c==='NGN'||!c?'en-NG':'en',{style:'currency',currency:c||'NGN',maximumFractionDigits:2}).format(Number(v||0));
 let ME=null,CL=[],AS=[];
-document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-t]').forEach(x=>x.classList.toggle('on',x===b));['clients','earn','guide'].forEach(t=>$('t-'+t).hidden=t!==b.dataset.t);if(b.dataset.t==='earn')earn()});
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-t]').forEach(x=>x.classList.toggle('on',x===b));['clients','mail','earn','guide'].forEach(t=>$('t-'+t).hidden=t!==b.dataset.t);if(b.dataset.t==='earn')earn();if(b.dataset.t==='mail')mailLoad()});
 $('out').onclick=async()=>{await sb.auth.signOut();location.replace('/platform')};
 async function signed(p){const r=await sb.storage.from('client-files').createSignedUrl(p,300);if(r.error)throw r.error;return r.data.signedUrl}
 async function boot(){
@@ -100,7 +103,7 @@ async function boot(){
  if(!e.data)return location.replace('/platform');if(e.data.access_level==='admin')return location.replace('/platform');
  ME=e.data;$('who').textContent=ME.name;$('hi').textContent='Welcome, '+ME.name.split(' ')[0];
  const [a,c]=await Promise.all([sb.from('client_assignments').select('*'),sb.from('clients').select('id,name,contact_name,country,product_name,business_type')]);
- AS=a.data||[];CL=c.data||[];await cards();
+ AS=a.data||[];CL=c.data||[];await cards();mailCount();
 }
 async function cards(){
  if(!CL.length){$('cards').innerHTML='<div class="card" style="grid-column:1/-1"><p class="muted" style="margin:0">No clients assigned yet. Nancy will assign your first client after your practice month.</p></div>';return}
@@ -144,6 +147,52 @@ async function earn(){
  const byM={};P.forEach(x=>(byM[x.period]=byM[x.period]||[]).push(x));
  $('paid').innerHTML=Object.entries(byM).map(([m,xs])=>{const t={};xs.forEach(x=>t[x.currency]=(t[x.currency]||0)+Number(x.amount));return '<div class="item" style="display:block"><b>'+mName(m)+': '+Object.entries(t).map(([c,v])=>fmtCur(v,c)).join(' + ')+'</b>'+xs.map(x=>'<div class="muted small">'+esc(CL.find(c=>c.id===x.client_id)?.name||'Client')+' · '+fmtCur(x.fee_amount,x.currency)+' × '+Number(x.share_pct)+'% = '+fmtCur(x.amount,x.currency)+(x.reference?' · ref '+esc(x.reference):'')+' · paid '+day(x.paid_at)+'</div>').join('')+'</div>'}).join('')||'<p class="muted">No payments yet.</p>';
 }
+
+// ---------- Work email ----------
+let MF='in',ML=[];
+const when=d=>d?new Date(d).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+async function mailCount(){if(!ME.work_email)return;const r=await sb.from('trb_inbox').select('id',{count:'exact',head:true}).eq('direction','in').eq('status','new');const n=r.count||0;$('mCount').textContent=n;$('mCount').classList.toggle('hidden',!n)}
+async function mailLoad(){
+ if(!ME.work_email){$('mAddr').textContent='Your work email has not been set up yet. Nancy will add it.';$('mList').innerHTML='';return}
+ $('mAddr').innerHTML='Your address: <b>'+esc(ME.work_email)+'</b>. Use it for all client email. Nancy can see this mailbox. Reply within 1 working day.';
+ let q=sb.from('trb_inbox').select('id,direction,from_email,from_name,to_email,subject,snippet,received_at,status,has_attachments').order('received_at',{ascending:false}).limit(100);
+ q=MF==='out'?q.eq('direction','out'):MF==='done'?q.eq('direction','in').eq('status','done'):q.eq('direction','in').neq('status','done');
+ const r=await q;if(r.error){$('mList').innerHTML='<div class="msg err">'+esc(r.error.message)+'</div>';return}ML=r.data||[];
+ document.querySelectorAll('[data-mf]').forEach(b=>b.classList.toggle('red',b.dataset.mf===MF));
+ $('mList').innerHTML=ML.map(m=>'<div class="item" data-mo="'+m.id+'" style="cursor:pointer'+(m.status==='new'?';font-weight:700':'')+'"><span><b>'+esc(m.direction==='out'?'To '+(m.to_email||''):(m.from_name||m.from_email||''))+'</b><span class="muted small">'+esc(m.subject||'(no subject)')+' · '+esc((m.snippet||'').slice(0,110))+'</span></span><span class="muted small">'+(m.has_attachments?'📎 ':'')+when(m.received_at)+'</span></div>').join('')||'<div class="empty">'+(MF==='out'?'Nothing sent yet.':MF==='done'?'Nothing marked done yet.':'No new email. Messages to '+esc(ME.work_email)+' appear here.')+'</div>';
+ document.querySelectorAll('[data-mo]').forEach(d=>d.onclick=()=>mailOpen(d.dataset.mo));mailCount();
+}
+async function mailOpen(id){
+ const r=await sb.from('trb_inbox').select('*').eq('id',id).single();if(r.error)return toast(r.error.message);const m=r.data;
+ if(m.status==='new'){await sb.from('trb_inbox').update({status:'read'}).eq('id',id);mailCount()}
+ const out=m.direction==='out';
+ $('mView').innerHTML='<div class="card"><div class="row" style="justify-content:space-between"><span class="muted small">'+(out?'Sent '+when(m.received_at)+' to '+esc(m.to_email||'')+(m.cc_emails?' · cc '+esc(m.cc_emails.join(', ')):''):'From <b>'+esc(m.from_name||'')+'</b> &lt;'+esc(m.from_email||'')+'&gt; · '+when(m.received_at))+'</span><button class="ghost sm" id="mClose">Close</button></div><h2>'+esc(m.subject||'(no subject)')+'</h2>'
+ +(m.attachment_names&&m.attachment_names.length?'<p class="muted small">📎 '+m.attachment_names.map(esc).join(', ')+(out?'':' (ask Nancy if you need a file from this email)')+'</p>':'')
+ +'<div style="white-space:pre-wrap;border-top:1px solid var(--line);padding-top:12px;max-height:440px;overflow:auto">'+esc(m.text_body||m.snippet||'')+'</div>'
+ +(out?'':'<div class="row" style="margin-top:14px"><button class="red" id="mRep">Reply</button><button class="ghost" id="mDone">'+(m.status==='done'?'Move back to inbox':'Mark done')+'</button></div>')+'</div>';
+ $('mView').scrollIntoView({behavior:'smooth'});
+ $('mClose').onclick=()=>$('mView').innerHTML='';
+ if(!out){$('mRep').onclick=()=>compose({to:m.from_email,subject:/^re:/i.test(m.subject||'')?m.subject:'Re: '+(m.subject||''),reply:m});
+  $('mDone').onclick=async()=>{const x=await sb.from('trb_inbox').update({status:m.status==='done'?'read':'done'}).eq('id',m.id);if(x.error)return toast(x.error.message);$('mView').innerHTML='';mailLoad()}}
+}
+const b64=f=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=no;r.readAsDataURL(f)});
+function compose(o={}){
+ if(!ME.work_email)return toast('Your work email is not set up yet');
+ const quote=o.reply?'\n\n\nOn '+when(o.reply.received_at)+', '+(o.reply.from_name||o.reply.from_email)+' wrote:\n'+String(o.reply.text_body||'').split('\n').slice(0,40).map(l=>'> '+l).join('\n'):'';
+ $('mCompose').innerHTML='<div class="card"><h2>'+(o.reply?'Reply':'New email')+'</h2><p class="muted small">From '+esc(ME.name)+' | The Resident Bookkeeper &lt;'+esc(ME.work_email)+'&gt;</p><div class="grid2"><div><label>To</label><input id="cTo" value="'+esc(o.to||'')+'" placeholder="client@example.com"></div><div><label>Cc (optional)</label><input id="cCc" placeholder="separate with commas"></div></div><label>Subject</label><input id="cSu" value="'+esc(o.subject||'')+'"><label>Message</label><textarea id="cBo" style="min-height:220px">\n\nBest regards,\n'+esc(ME.name)+'\nThe Resident Bookkeeper'+esc(quote)+'</textarea><label>Attach files (optional, up to 5 MB in total)</label><input type="file" id="cFi" multiple><div class="row" style="margin-top:12px"><button class="red" id="cSend">Send</button><button class="ghost" id="cCancel">Cancel</button></div><div id="cMsg"></div></div>';
+ $('mCompose').scrollIntoView({behavior:'smooth'});$('cBo').focus();$('cBo').setSelectionRange(0,0);
+ $('cCancel').onclick=()=>$('mCompose').innerHTML='';
+ $('cSend').onclick=async()=>{const b=$('cSend');b.disabled=true;$('cMsg').innerHTML='';
+  try{const files=[...$('cFi').files];if(files.reduce((n,f)=>n+f.size,0)>5e6)throw Error('Files are larger than 5 MB in total.');
+   const attachments=[];for(const f of files)attachments.push({filename:f.name,content:await b64(f)});
+   const {data:{session}}=await sb.auth.getSession();
+   const r=await fetch(U+'/functions/v1/team-mail',{method:'POST',headers:{Authorization:'Bearer '+session.access_token,apikey:K,'Content-Type':'application/json'},body:JSON.stringify({to:$('cTo').value,cc:$('cCc').value,subject:$('cSu').value,body:$('cBo').value,reply_to_id:o.reply?.id||null,attachments})});
+   const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||'Sending failed');
+   $('mCompose').innerHTML='';$('mView').innerHTML='';toast('Sent from '+ME.work_email);MF='out';mailLoad()}
+  catch(e){$('cMsg').innerHTML='<div class="msg err">'+esc(e.message)+'</div>';b.disabled=false}};
+}
+$('mNew').onclick=()=>compose();
+document.querySelectorAll('[data-mf]').forEach(b=>b.onclick=()=>{MF=b.dataset.mf;$('mView').innerHTML='';mailLoad()});
 boot();
 </script>
 </body>
