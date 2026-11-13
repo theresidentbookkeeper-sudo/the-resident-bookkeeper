@@ -207,7 +207,9 @@ async function amara(admin: SupabaseClient, owner: string, focus = "") {
   }
   const plan = slots.map((t, i) => ({ time_lagos: t, category: t === "16:00" ? "promotional" : wanted[i] || need[0][0], uses_manus_visual: !!images.length && i === 0 }));
   const international = day >= "2026-11-19";
-  const system = `You are Amara, Social Media & Growth Manager at The Resident Bookkeeper (Instagram @theresidentbookkeeper and Facebook). You write the daily posts Nancy approves and schedules.\n${SOCIAL_RULES}`;
+  // Extra rules Nancy can change without a code update (trb_growth_config.amara_rules).
+  const { data: cfg } = await admin.from("trb_growth_config").select("amara_rules").eq("id", true).maybeSingle();
+  const system = `You are Amara, Social Media & Growth Manager at The Resident Bookkeeper (Instagram @theresidentbookkeeper and Facebook). You write the daily posts Nancy approves and schedules.\n${SOCIAL_RULES}${cfg?.amara_rules ? "\nMORE RULES FROM NANCY:\n" + cfg.amara_rules : ""}`;
   const prompt = `Write the posts for ${day} (Lagos time). Today is ${ymd(lagosNow)}.
 Slots and categories to fill: ${JSON.stringify(plan)}.
 ${images.length ? `The attached image is a Manus visual Nancy made for the first slot${vis?.note ? ` (her note: ${vis.note})` : ""}. Read the text and picture in it carefully and write that post around exactly what the visual says. Do not describe a new design for it; you may change its category to fit the visual.` : "No Manus visual is waiting, so every post needs a text-card visual_brief."}
@@ -222,6 +224,9 @@ Reply with ONE fenced json block exactly in this shape, one entry per slot in th
   for (let i = 0; i < posts.length; i++) {
     const p = posts[i], slot = plan[i];
     for (const k of ["hook", "caption_instagram", "caption_facebook"]) if (!p[k]) throw new Error(`Post draft is missing "${k}".`);
+    // Hashtags always on their own line at the end.
+    const tidy = (t: string) => String(t).replace(/\s*((?:#[\p{L}\p{N}_]+[ \t]*)+)\s*$/u, "\n\n$1").trim();
+    p.caption_instagram = tidy(p.caption_instagram); p.caption_facebook = tidy(p.caption_facebook);
     if (["interactive"].includes(p.category) && !p.comment_answer) p.comment_answer = "Thank everyone who answered, then share the answer and one useful tip.";
     const when = `${day}T${slot.time_lagos}:00+01:00`;
     const useVis = slot.uses_manus_visual && vis;

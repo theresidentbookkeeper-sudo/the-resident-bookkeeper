@@ -4,3 +4,4 @@
 -- Trigger trb_social_post_decided keeps the history in step when a post approval is approved or rejected.
 -- History was seeded from Metricool (30 Sep to 18 Nov 2026, 42 posts).
 -- See the live database for the full definitions.
+-- 13 Nov 2026: trb_growth_config.amara_rules (text) added; Amara appends it to her rules, so rules can change without a code update.
