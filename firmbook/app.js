@@ -277,7 +277,7 @@ V.dashboard=()=>{const t=today(),ot=openTasks();const over=ot.filter(x=>x.due&&x
   const act=clients().filter(c=>c.status==='Active'||c.status==='Onboarding');
   const badge={tasks:over.length,compliance:obOver.length,documents:docsW.length};
   const hr=new Date().getHours();
-  if(!clients().length)return head('Dashboard','')+`<div class="empty"><b>Welcome, ${esc(firm().owner)}</b>Add your first client to start. Every module works from the client list.<div class="row"><button class="btn pri" data-a="clientNew">Add a client</button><button class="btn" data-a="loadExamples">Load example data to explore</button></div></div>`+tilesH(badge);
+  if(!clients().length)return head('Dashboard','')+`<div class="empty"><b>Welcome, ${esc(firm().owner)}</b>Add your first client to start. Every module works from the client list.<div class="row"><button class="btn pri" data-a="clientNew">Add a client</button><button class="btn" data-a="loadExamples">Load example data to explore</button></div></div>`;
   const att=[...over.map(x=>({d:x.due,h:`<div><div class="gr"><b>${esc(x.title)}</b><div class="sm mut">${esc(cname(x.clientId))} · task due ${fd(x.due)}</div></div>${stChip(x.due)}<button class="btn sm" data-a="taskDone" data-id="${x.id}">Mark done</button></div>`})),
     ...ob.map(o=>({d:o.due,h:`<div><div class="gr"><b>${esc(o.name)}</b><div class="sm mut">${esc(cname(o.clientId))} · ${esc(o.body)} · due ${fd(o.due)}</div></div>${stChip(o.due)}<button class="btn sm" data-a="fileIt" data-k="${o.key}">Mark filed</button></div>`})),
     ...wk.map(x=>({d:x.due,h:`<div><div class="gr"><b>${esc(x.title)}</b><div class="sm mut">${esc(cname(x.clientId))} · task due ${fd(x.due)}</div></div>${stChip(x.due)}<button class="btn sm" data-a="taskDone" data-id="${x.id}">Mark done</button></div>`}))].sort((a,b)=>a.d<b.d?-1:1).slice(0,12);
@@ -286,7 +286,6 @@ V.dashboard=()=>{const t=today(),ot=openTasks();const over=ot.filter(x=>x.due&&x
     return`<div><div class="gr"><b>${esc(c.name)}</b><div class="sm mut">${n} of ${tpl.length} checklist steps${cz.signed?' · closed '+fd(cz.signedOn):''}</div></div><div class="prog" style="width:110px"><i style="width:${n/tpl.length*100}%"></i></div><span class="chip ${rec?'ok':''}">${rec?'Bank reconciled':'Not reconciled'}</span><button class="btn sm" data-a="openClient" data-id="${c.id}" data-m="closing">Open</button></div>`}).join('');
   return`<div class="ph"><div><div class="eyebrow">${fd(t)}</div><h1>Good ${hr<12?'morning':hr<17?'afternoon':'evening'}, ${esc(firm().owner)}</h1><p>${ui.client?'Showing '+esc(cname(ui.client))+' only.':'Everything across your clients in one place.'}</p></div></div>
   <div class="grid g4"><div class="kpi"><span>Active clients</span><b>${act.length}</b></div><div class="kpi ${over.length?'bad':''}"><span>Tasks overdue</span><b>${over.length}</b></div><div class="kpi"><span>Tasks due in 7 days</span><b>${wk.length}</b></div><div class="kpi ${obOver.length?'bad':''}"><span>Filings due in 21 days</span><b>${ob.length}</b><em>${obOver.length} overdue</em></div><div class="kpi"><span>Documents awaited</span><b>${docsW.length}</b></div><div class="kpi"><span>Invoices unpaid</span><b>₦${N(inv.reduce((s,i)=>s+(+i.amount||0),0))}</b><em>${inv.length} invoice${inv.length===1?'':'s'}</em></div></div>
-  ${tilesH(badge)}
   <div class="grid g2"><div class="card"><h2>Needs attention</h2><div class="list">${att.map(a=>a.h).join('')||'<div class="mut">Nothing overdue and nothing due this week.</div>'}</div></div>
   <div class="card"><h2>Month-end progress <small>${pLabel(ui.period)}</small></h2><div class="list">${prog||'<div class="mut">No active clients yet.</div>'}</div></div></div>`};
 const tilesH=b=>`<div><div class="eyebrow" style="margin-bottom:8px">All modules</div><div class="tiles">${MODS.map(([k,l],i)=>`<button class="tile" data-a="go" data-m="${k}">${b[k]?`<u>${b[k]}</u>`:''}${ico(k)}<i>${pad(i+1)}</i><span>${l}</span></button>`).join('')}</div></div>`;
@@ -673,6 +672,16 @@ ACT.clearExamples=()=>confirmBox('Remove all example clients and their records?'
 
 /* ================= CORE ================= */
 let dirty=false;
+
+// Summary cards: black with a gold icon, and clickable. Each opens the module it counts; on that module it scrolls to the detail below.
+const KPI_MAP=[[/clients|monthly fees/i,'clients'],[/task/i,'tasks'],[/filing/i,'compliance'],[/document/i,'documents'],[/invoice/i,'clients'],
+  [/matched|on bank|in books|difference|bank reconciliation/i,'recon'],[/entries|uncategori/i,'bookkeeping'],[/checklist|months closed/i,'closing'],
+  [/staff|net pay|paye|pension|nsitf/i,'payroll'],[/sales|kept|profit|loss|bank and cash|margin|cost/i,'statements']];
+function kpiLinks(v){v.querySelectorAll('.kpi').forEach(k=>{if(k.dataset.a)return;const lab=(k.querySelector('span')||{}).textContent||'';
+  const m=(KPI_MAP.find(([re])=>re.test(lab))||[])[1]||ui.mod;k.dataset.a='kpi';k.dataset.m=m;k.setAttribute('role','button');k.tabIndex=0;k.title=m===ui.mod?'Show the detail':'Open '+(MODS.find(x=>x[0]===m)||[,''])[1];
+  k.insertAdjacentHTML('afterbegin',`<i class="kpi-ico">${ico(m)}</i>`)})}
+ACT.kpi=(d,el)=>{if(d.m!==ui.mod)return go(d.m);const g=el.closest('.grid');let n=g&&g.nextElementSibling;while(n&&!n.offsetHeight)n=n.nextElementSibling;if(n){n.scrollIntoView({behavior:'smooth',block:'start'});n.classList.add('flash');setTimeout(()=>n.classList.remove('flash'),1200)}};
+document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.classList&&e.target.classList.contains('kpi')){e.preventDefault();e.target.click()}});
 function renderNav(){$('#nav').innerHTML=MODS.map(([k,l],i)=>`<button data-a="go" data-m="${k}" class="${k===ui.mod?'on':''}">${ico(k)}<span>${l}</span></button>`).join('')}
 function render(){const v=$('#view');
   const sc=$('#selClient');sc.innerHTML='<option value="">All clients</option>'+clients().map(c=>`<option value="${c.id}" ${c.id===ui.client?'selected':''}>${esc(c.name)}</option>`).join('');$('#selPeriod').value=ui.period;
@@ -680,7 +689,7 @@ function render(){const v=$('#view');
   if(mode==='loading')return;
   const a=document.activeElement,keep=a&&a.id&&v.contains(a)?{id:a.id,val:a.value,s:a.selectionStart,text:/^(text|number|date|email|month|search|)$/.test(a.type||'')||a.tagName==='TEXTAREA'}:null;
   let html;try{html=V[ui.mod]()}catch(e){console.error(e);html=`<div class="empty"><b>This page could not be shown</b>Reload the page. If it keeps happening, contact support and say which module you opened.</div>`}
-  v.innerHTML=html;dirty=false;
+  v.innerHTML=html;kpiLinks(v);dirty=false;
   if(keep){const el=document.getElementById(keep.id);if(el){if(keep.text)el.value=keep.val;el.focus();try{if(keep.text&&keep.s!=null)el.setSelectionRange(keep.s,keep.s)}catch(e){}}}
   setSave()}
 function draw(force){if(!force){const a=document.activeElement;if(a&&$('#view').contains(a)&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&a.type!=='checkbox'&&a.type!=='file'){dirty=true;return}}render()}
