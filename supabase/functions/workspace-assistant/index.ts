@@ -1,4 +1,5 @@
-// TRB workspace assistant. Works only on the clients a team member is assigned to (admins: all clients).
+// Nora, TRB's AI bookkeeper, helping the team in their workspace. Works only on the clients a team member is assigned to (admins: all).
+//   reconcile: matches the team member's ledger/cash book (Excel/CSV) to the client's bank statements (no AI needed)
 //   convert: client PDF bank statements -> one Excel workbook (no AI needed; checked against the running balance)
 //   ask:     questions about a client's records (needs an AI key approved for client data)
 //   review:  checks a report or files against TRB's month-end checklist before submission (same)
@@ -8,6 +9,7 @@ import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { getDocumentProxy } from "npm:unpdf@0.12.1";
 import * as XLSX from "npm:xlsx@0.18.5";
 import { toLines, readStatement, pdfItems } from "./statement.ts";
+import { readTable, reconcile } from "./recon.ts";
 
 const BUCKET = "client-files";
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
@@ -31,7 +33,7 @@ async function ai(system: string, user: string, maxTokens = 2500): Promise<strin
     if (!r.ok) throw new Error(`AI service error ${r.status}: ${d?.error?.message || "unknown"}`);
     return (d?.candidates?.[0]?.content?.parts || []).map((p: any) => p.text || "").join("\n");
   }
-  throw new NeedsKey("The assistant's questions and reviews switch on once Nancy adds an AI key approved for client data. PDF to Excel already works.");
+  throw new NeedsKey("Nora's questions and reviews switch on once Nancy adds the AI key. PDF to Excel and reconciliation already work.");
 }
 
 async function fileText(admin: SupabaseClient, path: string, name: string, limit = 20000): Promise<string> {
@@ -65,7 +67,7 @@ Deno.serve(async (req) => {
   const { data: prof } = await admin.from("profile").select("owner_id").order("updated_at", { ascending: false }).limit(1).single();
   const { data: emp } = await admin.from("employees").select("id,name,access_level,status").eq("portal_user_id", uid).eq("status", "Active").maybeSingle();
   const isAdmin = uid === prof?.owner_id || emp?.access_level === "admin";
-  if (!emp && !isAdmin) return json({ error: "The assistant is for the TRB team." }, 403);
+  if (!emp && !isAdmin) return json({ error: "Nora works with the TRB team only." }, 403);
   const who = emp?.name || "Nancy";
   const today = new Date().toISOString().slice(0, 10);
   const allowed = async (clientId: string) => {
@@ -75,12 +77,15 @@ Deno.serve(async (req) => {
     return !!data?.length;
   };
   const audit = (event: string, detail: string, ref = "") => admin.from("trb_audit_log").insert({ user_id: uid, email: u.user.email, name: who, kind: isAdmin ? "team" : "staff", event, area: "assistant", detail: detail.slice(0, 500), ref_id: ref.slice(0, 80) });
-  const logRow = (row: Record<string, unknown>) => admin.from("trb_assistant_log").insert({ user_id: uid, employee_id: emp?.id || null, name: who, ...row }).select("id").single();
+  const logRow = async (row: Record<string, unknown>) => {
+    await admin.from("trb_ai_work_log").insert({ owner_id: prof!.owner_id, employee_id: "nora", job: `team_${row.action}`, status: "done", summary: `Helped ${who}: ${String(row.question || row.action).slice(0, 160)}`, proof: { client_id: row.client_id, files: row.files } });
+    return admin.from("trb_assistant_log").insert({ user_id: uid, employee_id: emp?.id || null, name: who, ...row }).select("id").single();
+  };
 
   try {
     const body = await req.json().catch(() => ({}));
     const clientId = String(body.client_id || "");
-    if (!(await allowed(clientId))) return json({ error: "You can only use the assistant on clients assigned to you." }, 403);
+    if (!(await allowed(clientId))) return json({ error: "Nora can only work on clients assigned to you." }, 403);
     const { data: client } = await admin.from("clients").select("id,name,country,business_type,contact_name,access_type").eq("id", clientId).single();
     const fileIds: string[] = (Array.isArray(body.file_ids) ? body.file_ids : []).map(String).slice(0, 12);
     const reportFileIds: string[] = (Array.isArray(body.report_file_ids) ? body.report_file_ids : []).map(String).slice(0, 6);
@@ -120,12 +125,93 @@ Deno.serve(async (req) => {
       const path = `${clientId}/assistant/${stamp}-statements.xlsx`;
       const up = await admin.storage.from(BUCKET).upload(path, new Uint8Array(bytes), { contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", upsert: true });
       if (up.error) throw new Error(up.error.message);
-      const { data: cf } = await admin.from("client_files").insert({ owner_id: prof!.owner_id, client_id: clientId, category: "converted", file_name: name, storage_path: path, note: `Converted by the TRB assistant for ${who} from ${summary.length} PDF statement(s).`, uploaded_by: uid, uploader: "assistant" }).select("id").single();
+      const { data: cf } = await admin.from("client_files").insert({ owner_id: prof!.owner_id, client_id: clientId, category: "converted", file_name: name, storage_path: path, note: `Converted by Nora for ${who} from ${summary.length} PDF statement(s).`, uploaded_by: uid, uploader: "assistant" }).select("id").single();
       const signed = await admin.storage.from(BUCKET).createSignedUrl(path, 600, { download: name });
       const answer = summary.map((s: any) => `${s.Statement}: ${s.Lines} lines, ${s.Balanced === "YES" ? "balances" : "does NOT balance"}`).join("\n") + (problems.length ? "\n\nTo check:\n" + problems.join("\n") : "");
       await logRow({ client_id: clientId, action: "convert", question: `Convert ${pdfs.length} PDF(s)`, answer, files: pdfs.map((f: any) => f.file_name), output_file_id: cf?.id });
       await audit("convert", `${client?.name}: ${pdfs.length} PDF statement(s) to Excel`, cf?.id || "");
       return json({ ok: true, url: signed.data?.signedUrl, file_name: name, summary, problems });
+    }
+
+
+    // ---------- Bank reconciliation: ledger / cash book vs bank statements ----------
+    if (body.action === "reconcile") {
+      const isBank = (f: any) => /\.pdf$/i.test(f.file_name) || ["bank_statement", "converted"].includes(f.category);
+      const bankFiles = (files || []).filter(isBank), bookFiles = (files || []).filter((f: any) => !isBank(f) && /\.(xlsx|xls|csv)$/i.test(f.file_name));
+      if (!bankFiles.length || !bookFiles.length) return json({ error: "Tick the bank statement(s) AND your ledger or cash book (Excel or CSV) to reconcile." }, 400);
+      const bank: any[] = [], books: any[] = [], notes: string[] = [];
+      for (const f of bankFiles) {
+        const dl = await admin.storage.from(BUCKET).download(f.storage_path); if (!dl.data) { notes.push(`${f.file_name}: could not be opened.`); continue; }
+        const bytes = new Uint8Array(await dl.data.arrayBuffer());
+        if (/\.pdf$/i.test(f.file_name)) {
+          const r = readStatement(toLines(await pdfItems(getDocumentProxy, bytes)));
+          if (!r.tx.length) { notes.push(`${f.file_name}: no transaction lines found (scanned or protected PDF?).`); continue; }
+          r.tx.forEach((t: any) => bank.push({ date: t.date, desc: t.description, amount: +(t.in - t.out).toFixed(2), src: f.file_name }));
+        } else {
+          const wb = XLSX.read(bytes, { type: "array", cellDates: true });
+          const name = wb.SheetNames.includes("All transactions") ? "All transactions" : wb.SheetNames[0];
+          const t = readTable(XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true }), name);
+          if (!t?.lines.length) { notes.push(`${f.file_name}: no bank lines found.`); continue; }
+          t.lines.forEach((l: any) => bank.push({ ...l, src: f.file_name }));
+        }
+      }
+      for (const f of bookFiles) {
+        const dl = await admin.storage.from(BUCKET).download(f.storage_path); if (!dl.data) { notes.push(`${f.file_name}: could not be opened.`); continue; }
+        const wb = XLSX.read(new Uint8Array(await dl.data.arrayBuffer()), { type: "array", cellDates: true });
+        let got = false;
+        for (const name of wb.SheetNames) {
+          const t = readTable(XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true }), name);
+          if (t?.lines.length) { t.lines.forEach((l: any) => books.push({ ...l, src: `${f.file_name} / ${name}` })); got = true; }
+        }
+        if (!got) notes.push(`${f.file_name}: I could not find a table with a Date column and amounts (Money in/out, Debit/Credit or Amount).`);
+      }
+      if (!bank.length || !books.length) return json({ error: notes.join(" ") || "Nothing to reconcile." }, 422);
+      const r: any = reconcile(bank, books);
+      const row = (x: any) => ({ Date: x.date, Description: x.desc, "Money in": x.amount > 0 ? x.amount : null, "Money out": x.amount < 0 ? -x.amount : null, Source: x.src || "" });
+      const out = XLSX.utils.book_new();
+      const summary = [
+        ["Bank reconciliation by Nora", ""], ["Client", client?.name], ["Prepared for", who], ["Statement period", `${r.from} to ${r.to}`], ["", ""],
+        ["", "Bank", "Books"], ["Money in", r.bankIn, r.booksIn], ["Money out", r.bankOut, r.booksOut], ["Net movement", r.bankNet, r.booksNet], ["Difference (bank - books)", +(r.bankNet - r.booksNet).toFixed(2)], ["", ""],
+        ["Lines matched", r.matched.length], ["In the bank, missing from the books", r.bankOnly.length, +r.bankOnly.reduce((s: number, x: any) => s + x.amount, 0).toFixed(2)],
+        ["In the books, not in the bank", r.booksOnly.length, +r.booksOnly.reduce((s: number, x: any) => s + x.amount, 0).toFixed(2)],
+        ["Same transaction, different amount", r.pairs.length, +r.pairs.reduce((s: number, p: any) => s + p.diff, 0).toFixed(2)],
+        ["Months in the books with no bank statement", r.gapMonths.join(", ") || "none", r.gapLines.length],
+        ["Possible duplicates in the books", r.dups.length], ["Lines in suspense / uncategorised", r.suspense.length],
+        ["Books outside the statement period", r.outside.length], ["", ""],
+        ["How to read this", "Start with 'Different amount' (likely typing errors), then 'Bank only' (usually charges, transfers or income not yet recorded), then 'Books only' (uncleared cheques, deposits in transit, or entries that never happened)."],
+        r.flipped ? ["Note", "Your file records money in as a credit, so I reversed the signs to compare."] : ["", ""],
+      ];
+      XLSX.utils.book_append_sheet(out, XLSX.utils.aoa_to_sheet(summary), "Summary");
+      XLSX.utils.book_append_sheet(out, XLSX.utils.json_to_sheet(r.pairs.map((p: any) => ({ "Bank date": p.bank.date, "Bank description": p.bank.desc, "Bank amount": p.bank.amount, "Books date": p.books.date, "Books description": p.books.desc, "Books amount": p.books.amount, Difference: p.diff }))), "Different amount");
+      XLSX.utils.book_append_sheet(out, XLSX.utils.json_to_sheet(r.bankOnly.map(row)), "Bank only");
+      XLSX.utils.book_append_sheet(out, XLSX.utils.json_to_sheet(r.booksOnly.map(row)), "Books only");
+      if (r.gapLines.length) XLSX.utils.book_append_sheet(out, XLSX.utils.json_to_sheet(r.gapLines.map(row)), "No statement yet");
+      if (r.dups.length) XLSX.utils.book_append_sheet(out, XLSX.utils.json_to_sheet(r.dups.map(row)), "Possible duplicates");
+      if (r.suspense.length) XLSX.utils.book_append_sheet(out, XLSX.utils.json_to_sheet(r.suspense.map((x: any) => ({ ...row(x), Account: x.account }))), "Suspense");
+      XLSX.utils.book_append_sheet(out, XLSX.utils.json_to_sheet(r.matched.map((b: any) => ({ "Bank date": b.date, "Bank description": b.desc, Amount: b.amount, "Books date": b.m.date, "Books description": b.m.desc, "Days apart": b.days }))), "Matched");
+      const bytes = XLSX.write(out, { type: "array", bookType: "xlsx" });
+      const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 12);
+      const name = `Bank reconciliation by Nora ${r.from} to ${r.to} (${stamp}).xlsx`;
+      const path = `${clientId}/assistant/${stamp}-reconciliation.xlsx`;
+      const up = await admin.storage.from(BUCKET).upload(path, new Uint8Array(bytes), { contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", upsert: true });
+      if (up.error) throw new Error(up.error.message);
+      const { data: cf } = await admin.from("client_files").insert({ owner_id: prof!.owner_id, client_id: clientId, category: "converted", file_name: name, storage_path: path, note: `Bank reconciliation by Nora for ${who}.`, uploaded_by: uid, uploader: "assistant" }).select("id").single();
+      const signed = await admin.storage.from(BUCKET).createSignedUrl(path, 600, { download: name });
+      const fmt = (n: number) => n.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const lines = [
+        `Period ${r.from} to ${r.to}. ${r.matched.length} lines matched.`,
+        `Bank net movement ${fmt(r.bankNet)}; books ${fmt(r.booksNet)}; difference ${fmt(r.bankNet - r.booksNet)}.`,
+        r.pairs.length ? `${r.pairs.length} transaction(s) recorded with a different amount, e.g. ${r.pairs[0].bank.date}: bank ${fmt(r.pairs[0].bank.amount)}, books ${fmt(r.pairs[0].books.amount)}.` : "",
+        `${r.bankOnly.length} bank line(s) missing from the books (${fmt(r.bankOnly.reduce((s: number, x: any) => s + x.amount, 0))}).`,
+        `${r.booksOnly.length} book line(s) not in the bank (${fmt(r.booksOnly.reduce((s: number, x: any) => s + x.amount, 0))}).`,
+        r.gapMonths.length ? `No bank statement for ${r.gapMonths.join(", ")}: ${r.gapLines.length} book line(s) cannot be checked yet. Ask the client for it.` : "",
+        r.dups.length ? `${r.dups.length} possible duplicate(s) in the books.` : "",
+        r.suspense.length ? `${r.suspense.length} line(s) in suspense or uncategorised.` : "",
+        ...notes,
+      ].filter(Boolean);
+      await logRow({ client_id: clientId, action: "reconcile", question: `Reconcile ${bookFiles.map((f: any) => f.file_name).join(", ")} with ${bankFiles.length} bank file(s)`, answer: lines.join("\n"), files: [...bankFiles, ...bookFiles].map((f: any) => f.file_name), output_file_id: cf?.id });
+      await audit("convert", `${client?.name}: bank reconciliation ${r.from} to ${r.to}`, cf?.id || "");
+      return json({ ok: true, url: signed.data?.signedUrl, file_name: name, lines });
     }
 
     // ---------- Questions and reviews (AI) ----------
@@ -148,7 +234,7 @@ FILES ON RECORD: ${(flist || []).map((f: any) => `${f.file_name} (${f.category |
 REPORTS: ${(reps || []).map((r: any) => `${r.title} ${r.period_start || ""}–${r.period_end || ""} [${r.status}]`).join("; ") || "none"}
 ${texts.length ? "\nSELECTED FILES:\n" + texts.join("\n\n") : ""}
 ${(hist || []).length ? "\nEARLIER IN THIS CONVERSATION (latest first):\n" + (hist || []).map((h: any) => `Q: ${h.question}\nA: ${String(h.answer || "").slice(0, 800)}`).join("\n") : ""}`;
-      const system = `You are the TRB Assistant inside The Resident Bookkeeper's portal, helping ${who}, a TRB bookkeeper, with client ${client?.name}.
+      const system = `You are Nora, The Resident Bookkeeper's AI bookkeeper, working inside TRB's portal and helping ${who}, a TRB bookkeeper, with client ${client?.name}.
 Use ONLY the client information and files given. Never invent figures, transactions or documents; if something is not in the files, say so and say what to ask the client for. Show your workings for any numbers.
 Be practical and concise. Use plain text with short headings and numbered points (no markdown tables). Nigerian context by default (naira, VAT 7.5%, WHT, PAYE, pension, NTA 2025 rules) unless the client is in another country.
 Never tell the bookkeeper to send anything to the client; reports go to Nancy for review first. Keep client information confidential.`;
