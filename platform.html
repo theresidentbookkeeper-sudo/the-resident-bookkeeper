@@ -44,7 +44,39 @@
 @media(max-width:850px){.login{grid-template-columns:1fr}.login .art{display:none}.mobile-brand{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:18px}.mobile-brand img{width:44px;height:44px;border-radius:50%}.mobile-brand b{font-size:16px}.login .box{align-items:start;padding-top:40px;background:#14110E;min-height:100vh}.mobile-hero{display:block;position:relative;border-radius:16px 16px 0 0;overflow:hidden;height:190px;margin-bottom:-14px}.mobile-hero img{width:100%;height:100%;object-fit:cover;object-position:center 25%}.mobile-hero:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 35%,rgba(20,17,14,.85))}.mobile-hero span{position:absolute;left:18px;bottom:26px;z-index:1;color:#fff;font:800 24px/1.1 'Schibsted Grotesk',system-ui,sans-serif}.mobile-hero em{font-style:normal;color:#E8C76A}.login-card .card{position:relative}.login .box .mobile-brand b{color:#fff}.login-help{color:#e8dfd2}.login-help a{color:#E8C76A}.login-card .card{padding:24px}}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"><style id="firmbook-fonts">body,button,input,select,textarea,table,.login .art,.login-card{font-family:'Public Sans',system-ui,-apple-system,'Segoe UI',sans-serif!important}h1,h2,.brand b,.login .art h1,.login-card h2{font-family:'Cinzel','Trajan Pro',Georgia,serif!important;font-weight:600!important;letter-spacing:.03em!important}</style></head><body>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"><style id="firmbook-fonts">
+/* Typography matched to FirmBook: Cinzel for page titles and the brand, Public Sans everywhere else, FirmBook sizes. */
+:root{--fb-disp:'Cinzel','Trajan Pro',Georgia,serif;--fb-body:'Public Sans',system-ui,-apple-system,'Segoe UI',sans-serif}
+body{font-family:var(--fb-body)!important;font-size:14px!important;line-height:1.45!important}
+button,input,select,textarea,table,.btn{font-family:var(--fb-body)!important}
+/* Page titles */
+.hero h1,main h1,section>h1,.view h1{font-family:var(--fb-disp)!important;font-weight:600!important;font-size:22px!important;line-height:1.25!important;letter-spacing:.04em!important}
+.brand b{font-family:var(--fb-disp)!important;font-weight:600!important;letter-spacing:.14em!important}
+.hero p,.view>p,section>p.muted,.hero .muted{font-size:14px!important;line-height:1.45!important}
+/* Card and section headings */
+h2{font-family:var(--fb-body)!important;font-size:14px!important;font-weight:700!important;letter-spacing:0!important;line-height:1.35!important}
+h3{font-family:var(--fb-body)!important;font-size:13px!important;font-weight:700!important;letter-spacing:0!important}
+/* Small print, labels, eyebrows */
+label{font-size:12px!important;font-weight:500!important;text-transform:none!important;letter-spacing:0!important;color:var(--muted,#6a6358)}
+.eyebrow,.eyebrow-red{font-size:11px!important;letter-spacing:.14em!important;font-weight:600!important}
+.muted.small,.small,.sm{font-size:12px!important}
+.pill,.chip{font-size:11px!important;font-weight:600!important}
+/* Controls */
+button,.btn{font-size:14px!important;font-weight:500!important}
+.bl-acts button,.task-actions button,button.sm,.btn.sm{font-size:12px!important}
+input,select,textarea{font-size:14px!important;padding:7px 9px!important;border-radius:6px!important}
+/* Tables */
+th,.table th{font-size:11px!important;letter-spacing:.07em!important;text-transform:uppercase!important;font-weight:600!important}
+td,.table td{font-size:14px!important}
+/* Figures */
+.metric b,.stat b{font-family:var(--fb-body)!important;font-size:22px!important;font-weight:600!important;font-variant-numeric:tabular-nums}
+.metric span,.stat span{font-size:12px!important}
+/* Menu */
+.side button,.side a,.tabs button,.tabs a{font-size:14px!important;font-weight:500!important;letter-spacing:0!important}
+/* The sign-in page keeps its large welcome headline, in FirmBook's title font */
+.login .art h1{font-family:var(--fb-disp)!important;font-size:clamp(34px,4vw,52px)!important;letter-spacing:.02em!important}
+.login-card h2{font-family:var(--fb-disp)!important;font-size:24px!important;font-weight:600!important}
+</style></head><body>
 <div id="login" class="login">
 <section class="art">
  <div class="art-top"><img class="art-logo" src="/assets/trb-logo.svg" alt=""><div><b>The Resident Bookkeeper</b><small>Client &amp; team portal</small></div></div>
