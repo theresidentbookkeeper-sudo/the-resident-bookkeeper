@@ -735,7 +735,7 @@ async function enter(user){
   authView('<p class="mut">Opening your records…</p>');
   const{data:acc,error}=await SB.from('rb_app_access').select('role').maybeSingle();
   if(error)return signInView('Your records could not be opened. Check your connection and try again.');
-  if(!acc||(acc.role!=='owner'&&acc.role!=='team')){await SB.auth.signOut();return signInView('This login does not have access to the practice portal.')}
+  if(!acc||(acc.role!=='owner'&&acc.role!=='team')){await SB.auth.signOut({scope:'local'});return signInView('This login does not have access to the practice portal.')}
   try{await loadAll()}catch(e){return signInView('Your records could not be opened. Check your connection and try again.')}
   db=shim;mode='db';authEl().hidden=true;$('#app').hidden=false;$('#who').textContent=user.email;window.FB_ROLE=acc.role;if(acc.role==='team')banner('You can see only the clients Nancy has assigned to you. Adding clients and changing firm settings is done by Nancy.');if(window.trbAudit)trbAudit.start(SB,'FirmBook');renderNav();render()}
 FM.signIn=async v=>{$('#au_btn').disabled=true;$('#au_err').textContent='';const{data,error}=await SB.auth.signInWithPassword({email:v.email,password:v.password});
@@ -744,7 +744,7 @@ FM.newPw=async v=>{if(v.p1!==v.p2)return $('#au_err').textContent='The two passw
   $('#au_btn').disabled=true;const{data,error}=await SB.auth.updateUser({password:v.p1,data:{temp:false}});
   if(error){$('#au_btn').disabled=false;$('#au_err').textContent=/different|same/i.test(error.message)?'Choose a password different from the current one.':/weak|least|characters/i.test(error.message)?error.message:'The password could not be saved. Try again.';return}
   toast('Password saved');recovering=false;enter(data.user)};
-ACT.signOut=async()=>{if(window.trbAudit)await trbAudit.log('logout','FirmBook');await SB.auth.signOut();COLS.forEach(c=>cache[c]={});mode='loading';signInView()};
+ACT.signOut=async()=>{if(window.trbAudit)await trbAudit.log('logout','FirmBook');await SB.auth.signOut({scope:'local'});COLS.forEach(c=>cache[c]={});mode='loading';signInView()};
 ACT.changePw=()=>newPwView('',false);
 ACT.pwShow=(d,el)=>{const i=el.parentNode.querySelector('input');const show=i.type==='password';i.type=show?'text':'password';el.textContent=show?'Hide':'Show';el.setAttribute('aria-label',show?'Hide password':'Show password');i.focus()};
 const forgotView=msg=>authView(`<p class="mut">Enter your email and we will send you a link to set a new password.</p><form data-f="forgot"><label class="f">Email<input name="email" id="fg_email" type="email" autocomplete="username" required></label><div class="aerr" id="au_err">${esc(msg||'')}</div><button class="btn pri" type="submit" id="au_btn">Send link</button></form><p class="sm"><a href="#" data-a="showSignIn">Back to sign in</a></p>`);

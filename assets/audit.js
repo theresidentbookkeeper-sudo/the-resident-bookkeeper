@@ -1,7 +1,7 @@
 // TRB audit: records sign-ins, page views, file downloads/uploads and sign-outs for the Audit page.
 // Usage on a portal page: trbAudit.start(sb, 'workspace'); trbAudit.log('view', 'Mail tab'); trbAudit.signOut()
 window.trbAudit = (function () {
-  let sb = null, page = '', timer = null;
+  let sb = null, page = '', timer = null, leaving = false;
   const call = (event, area, detail, ref, at) => {
     if (!sb) return Promise.resolve();
     return sb.rpc('trb_audit', { p_event: event, p_area: area || page, p_detail: detail || null, p_ref: ref || null, p_signed_in_at: at || null }).then(() => {}, () => {});
@@ -36,12 +36,13 @@ window.trbAudit = (function () {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return;
     watchStorage();
+    sb.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_OUT' && !leaving && page !== 'FirmBook') location.replace('/platform?expired=1'); });
     await call('login', page, device(), null, session.user.last_sign_in_at || null);
     call('view', page);
     clearInterval(timer);
     timer = setInterval(() => { if (document.visibilityState === 'visible') call('heartbeat', page); }, 120000);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') call('heartbeat', page); });
   }
-  async function signOut() { await call('logout', page); await sb.auth.signOut(); }
+  async function signOut() { leaving = true; await call('logout', page); await sb.auth.signOut({ scope: 'local' }); }
   return { start, signOut, log: (event, detail, ref, area) => call(event, area, detail, ref) };
 })();
