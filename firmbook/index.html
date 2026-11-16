@@ -44,11 +44,15 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
 .card h2{font-size:14px;font-weight:700;margin-bottom:10px}
 .card h2 small{font-weight:400;color:var(--muted);margin-left:6px}
-.kpi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
-.kpi span{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.kpi b{display:block;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:2px;overflow-wrap:anywhere}
-.kpi.bad b{color:var(--red)}.kpi.good b{color:var(--ok)}
-.kpi em{font-style:normal;font-size:12px;color:var(--muted)}
+.kpi{background:var(--side);color:var(--side-ink);border:1px solid var(--side-line);border-radius:8px;padding:12px 14px;position:relative;cursor:pointer;transition:border-color .15s,transform .15s}
+.kpi:hover{border-color:#d9b65a;transform:translateY(-1px)}.kpi:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.kpi .kpi-ico{position:absolute;top:11px;right:12px;font-style:normal;line-height:0}.kpi .kpi-ico svg{width:20px;height:20px;color:#d9b65a}
+.kpi span{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--side-mut);padding-right:26px}
+.kpi b{display:block;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:2px;overflow-wrap:anywhere;color:#f3e6c2}
+.kpi.bad b{color:#f06a6e}.kpi.good b{color:#5cc48e}
+.kpi em{font-style:normal;font-size:12px;color:var(--side-mut)}
+.kpi .prog{background:#2a261f}
+.flash{box-shadow:0 0 0 2px #d9b65a;transition:box-shadow .3s}
 .tiles{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px}
 @media (max-width:1180px){.tiles{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media (max-width:460px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
