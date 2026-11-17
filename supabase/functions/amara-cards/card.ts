@@ -19,7 +19,7 @@ export function buildCardSvg(card) {
   const style = ["steps", "options"].includes(card.style) ? card.style : "checklist";
   let hs = 70; let head = wrap(card.headline, hs, MAXW, true, 5);
   if (head.length > 3) { hs = 60; head = wrap(card.headline, hs, MAXW, true, 5); }
-  const items = (card.lines || []).filter(Boolean).slice(0, 4);
+  const items = (card.lines || []).map((t) => String(t).replace(/^\s*(?:[A-Da-d1-9][.):]|[-•✔✓])\s+/, "").replace(/\.$/, "")).filter(Boolean).slice(0, 4);
   const ls = items.length > 3 ? 36 : 40;
   const itemLines = items.map((t) => wrap(t, ls, MAXW - 84, false, 3));
   const btn = String(card.button || "Learn More").slice(0, 28);
