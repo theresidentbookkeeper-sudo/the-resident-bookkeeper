@@ -13,6 +13,7 @@
   "vars": {
     "FORWARD_TO": "theresidentbookkeeper@gmail.com",
     "FORWARD_MAP": "{}",
+    "GMAIL_ADDRESSES": "info@residentbookkeeper.com",
     "INBOX_URL": "https://njhohxhtqkktktngjflb.supabase.co/functions/v1/inbox-ingest"
   },
   "observability": { "enabled": true }
