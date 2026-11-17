@@ -1,5 +1,8 @@
 // residentbookkeeper.com on Cloudflare: serves the website, and handles email sent to @residentbookkeeper.com.
-// Email: every message is forwarded to Gmail first (so nothing is ever lost), then a copy goes to the portal's AI inbox.
+// Email:
+//   - addresses in GMAIL_ADDRESSES (info@) are forwarded to Gmail and copied to the portal inbox;
+//   - every other address (the team's work email) goes to the portal inbox only.
+//     If the portal cannot take it, it is forwarded to Gmail instead, so nothing is ever lost.
 export default {
   async fetch(request, env) {
     return env.ASSETS.fetch(request);
@@ -8,6 +11,7 @@ export default {
     const to = String(message.to || "").toLowerCase();
     const map = (() => { try { return JSON.parse(env.FORWARD_MAP || "{}"); } catch { return {}; } })();
     const dest = map[to] || env.FORWARD_TO;
+    const toGmail = String(env.GMAIL_ADDRESSES || "info@residentbookkeeper.com").toLowerCase().split(",").map((s) => s.trim()).includes(to) || !!map[to];
     const token = env.INBOX_TOKEN || env.Inbox_Token || env.inbox_token;
     // Read the raw email first: once it has been forwarded the stream may already be used up.
     let raw = null;
@@ -16,16 +20,21 @@ export default {
     } else {
       console.log("inbox copy skipped: INBOX_TOKEN secret or INBOX_URL missing");
     }
-    // 1. Forward to Gmail. If this fails the sender gets a bounce instead of mail silently disappearing.
-    await message.forward(dest);
-    // 2. Copy to the AI inbox (best effort; never blocks delivery).
-    if (raw && raw.byteLength <= 6 * 1024 * 1024) {
-      ctx.waitUntil((async () => {
-        try {
-          const r = await fetch(env.INBOX_URL, { method: "POST", headers: { "Content-Type": "message/rfc822", "x-inbox-token": token, "x-mail-to": to, "x-mail-from": String(message.from || "") }, body: raw });
-          console.log("inbox copy", r.status);
-        } catch (e) { console.log("inbox copy failed", String(e)); }
-      })());
+    const toPortal = async () => {
+      if (!raw || raw.byteLength > 6 * 1024 * 1024) return false;
+      try {
+        const r = await fetch(env.INBOX_URL, { method: "POST", headers: { "Content-Type": "message/rfc822", "x-inbox-token": token, "x-mail-to": to, "x-mail-from": String(message.from || "") }, body: raw });
+        console.log("inbox copy", to, r.status);
+        return r.ok;
+      } catch (e) { console.log("inbox copy failed", String(e)); return false; }
+    };
+    if (toGmail) {
+      // Forward first: if this fails the sender gets a bounce instead of mail silently disappearing.
+      await message.forward(dest);
+      ctx.waitUntil(toPortal());
+      return;
     }
+    // Team work email: portal inbox only, Gmail as the safety net.
+    if (!(await toPortal())) await message.forward(dest);
   },
 };
