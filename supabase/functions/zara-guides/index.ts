@@ -123,7 +123,7 @@ async function validate(admin: SupabaseClient, g: any, isNew: boolean) {
   if (out.description.length < 60) problems.push("description too short");
   if (out.answer.length < 150) problems.push("short answer too short");
   const words = plain(out.body_html, 100000).split(" ").length;
-  if (words < 450) problems.push(`body too short (${words} words)`);
+  if (words < 650) problems.push(`body too short (${words} words)`);
   if (words > 3000) problems.push(`body too long (${words} words)`);
   if ((out.body_html.match(/<h2>/g) || []).length < 3) problems.push("needs at least 3 sections");
   if (out.faq.length < 3) problems.push("needs 3 FAQs");
@@ -134,6 +134,12 @@ async function validate(admin: SupabaseClient, g: any, isNew: boolean) {
   if (out.sources.length < 3) problems.push(`only ${out.sources.length} working source links (need 3)`);
   const all = (out.title + " " + out.answer + " " + plain(out.body_html, 100000) + " " + JSON.stringify(out.faq)).toLowerCase();
   for (const bad of ["guarantee", "we file your tax", "we will file", "legal advice from us", "100% accurate", "as an ai", "lorem ipsum"]) if (all.includes(bad)) problems.push(`banned phrase: ${bad}`);
+  const planNames = ["essentials", "growth", "premium", "books lite"].filter((n) => new RegExp(`\\b${n}\\b[^.]{0,40}(₦|\\$|£)`).test(all)).length;
+  // Nancy's own guides may include prices (e.g. the cost guide), so these two checks apply to new guides only.
+  if (isNew && planNames >= 2) problems.push("contains a price list (guides must teach, not sell)");
+  const mentions = (all.match(/resident bookkeeper|\btrb\b/g) || []).length;
+  if (isNew && mentions > 3) problems.push(`mentions TRB ${mentions} times (max 3)`);
+  if (/monthly bookkeeping \(matching/.test(all)) problems.push("wrong definition: matching records to the bank statement is bank reconciliation");
   for (const n of await confidentialNames(admin)) if (n.length >= 6 && all.includes(n)) problems.push("mentions a client or lead by name");
   if (isNew) {
     const { data: ex } = await admin.from("trb_guides").select("id").eq("slug", out.slug).maybeSingle();
@@ -145,7 +151,7 @@ async function validate(admin: SupabaseClient, g: any, isNew: boolean) {
 // ---------------- prompts ----------------
 const SHAPE = `Return ONLY one JSON object:
 {"topic": string, "slug": "short-url-words", "title": "the question, as a business owner would ask it", "seo_title": "under 65 characters", "description": "under 155 characters", "answer": "2-4 sentence direct answer that stands alone (no HTML)", "body_html": "HTML using only <h2>, <h3>, <p>, <ul class=\\"ticks\\">, <ol class=\\"gsteps\\">, <li>, <strong>, <table> with <thead>/<tbody>/<tr>/<th>/<td>. 700-1400 words, at least 4 <h2> sections, practical, with a checklist or table where useful. Use <ol class=\\"gsteps\\"> for numbered steps and <ul class=\\"ticks\\"> for bullet lists.", "faq": [{"q": "...", "a": "..."}] (exactly 3), "sources": [{"title": "...", "url": "https://..."}] (3 to 6 real, specific pages you used: official sites such as government, tax authority, laws, regulators or large professional firms; full direct URLs, never search links)}`;
-const STYLE = `Write like Nancy Bello's team at The Resident Bookkeeper: plain English, short sentences, British spelling, warm and practical, no hype, no emojis, no em dashes. Start sections with the answer. Explain terms the first time (e.g. "bank reconciliation (matching your records to your bank statement)"). Where tax is involved, show how good records help with it, but never give personalised tax advice or claim TRB files tax. Only state a figure (rate, threshold, deadline, penalty) if it comes from a current source you cite; say which law or authority it comes from and the year. If sources disagree, leave the figure out. Mention TRB naturally at most twice, ending with how TRB can help and the free Books Health Check.`;
+const STYLE = `Write like Nancy Bello's team at The Resident Bookkeeper: plain English, short sentences, British spelling, warm and practical, no hype, no emojis, no em dashes. Start sections with the answer. Explain terms the first time (e.g. "bank reconciliation (matching your records to your bank statement)"). Where tax is involved, show how good records help with it, but never give personalised tax advice or claim TRB files tax. Only state a figure (rate, threshold, deadline, penalty) if it comes from a current source you cite; say which law or authority it comes from and the year. If sources disagree, leave the figure out. Mention TRB at most twice: one short closing paragraph on how TRB can help and the free Books Health Check. Never include a price list or plan table; at most one sentence may mention a single relevant price. Use terms correctly: bank reconciliation means matching your records to your bank statement; bookkeeping means recording every sale and expense. Teach the reader something practical in every section (steps, examples, checklists).`;
 
 async function writeGuide(admin: SupabaseClient) {
   const { data: existing } = await admin.from("trb_guides").select("title,topic").order("published_at", { ascending: false }).limit(200);
