@@ -30,7 +30,7 @@ async function gemini(system: string, prompt: string, search = false, temperatur
   const models = [pick, "gemini-3.5-flash-lite", pick, "gemini-3.5-flash-lite"];
   let last = "";
   for (const model of models) {
-    const body: Record<string, unknown> = { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature, maxOutputTokens: 16384, ...(search ? {} : { responseMimeType: "application/json" }) } };
+    const body: Record<string, unknown> = { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature, maxOutputTokens: 32768, ...(search ? {} : { responseMimeType: "application/json" }) } };
     if (search) body.tools = [{ google_search: {} }];
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body), signal: AbortSignal.timeout(90000) })
       .catch((e) => new Response(JSON.stringify({ error: { message: String(e) } }), { status: 503 }));
@@ -62,12 +62,13 @@ async function research(queries: string[], opts: Record<string, unknown> = {}) {
 }
 const evidenceText = (hits: Hit[]) => hits.map((h, i) => `[${i + 1}] ${h.title}\nURL: ${h.url}${h.published ? "\nPublished: " + h.published : ""}\n${h.content}`).join("\n\n");
 function lastJson(raw: string): any {
+  try { const v = JSON.parse(raw.trim()); return Array.isArray(v) ? { items: v } : v; } catch { /* fall through */ }
   const fenced = [...raw.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)].map((m) => m[1]);
   for (const c of [...fenced.reverse(), raw]) {
     const s = c.indexOf("{"), e = c.lastIndexOf("}");
     if (s >= 0 && e > s) { try { return JSON.parse(c.slice(s, e + 1)); } catch { /* try next */ } }
   }
-  throw new Error("The model did not return valid JSON.");
+  throw new Error("The model did not return valid JSON (starts: " + raw.trim().slice(0, 80).replace(/\s+/g, " ") + " ... ends: " + raw.trim().slice(-60).replace(/\s+/g, " ") + ")");
 }
 
 // ---------------- checks before anything goes live ----------------
