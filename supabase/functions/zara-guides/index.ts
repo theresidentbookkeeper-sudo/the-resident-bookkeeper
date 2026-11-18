@@ -5,7 +5,7 @@
 //   action "unpublish" - (team only) take a guide off the website: { slug }.
 //   action "restore"   - (team only) put back the previous version of a guide: { slug }.
 // Publishing is automatic (Nancy's choice, 18 Nov 2026), so every guide must pass the checks in validate() first.
-// Uses the free Gemini key with Google Search. Only public information goes to the model; never client data.
+// Uses Tavily web search plus the free Gemini key. Only public information goes to the model; never client data.
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 const SITE = "https://residentbookkeeper.com";
@@ -23,14 +23,14 @@ Good topics: bookkeeping basics, tax records and deadlines, VAT, withholding tax
 
 // ---------------- Gemini ----------------
 function geminiKey() { return Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY") || ""; }
-async function gemini(system: string, prompt: string, search = true, temperature = 0.4) {
+async function gemini(system: string, prompt: string, search = false, temperature = 0.4) {
   const key = geminiKey();
   if (!key) throw new Error("No GEMINI_API_KEY is set in Supabase Edge Function secrets.");
-  const pick = Deno.env.get("GEMINI_GUIDES_MODEL") || Deno.env.get("GEMINI_MODEL") || "gemini-flash-latest";
-  const models = [pick, "gemini-flash-lite-latest", pick, "gemini-flash-lite-latest"];
+  const pick = Deno.env.get("GEMINI_GUIDES_MODEL") || Deno.env.get("GEMINI_MODEL") || "gemini-flash-lite-latest";
+  const models = [pick, "gemini-3.5-flash-lite", pick, "gemini-3.5-flash-lite"];
   let last = "";
   for (const model of models) {
-    const body: Record<string, unknown> = { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature, maxOutputTokens: 16384 } };
+    const body: Record<string, unknown> = { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature, maxOutputTokens: 16384, ...(search ? {} : { responseMimeType: "application/json" }) } };
     if (search) body.tools = [{ google_search: {} }];
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body), signal: AbortSignal.timeout(90000) })
       .catch((e) => new Response(JSON.stringify({ error: { message: String(e) } }), { status: 503 }));
@@ -38,10 +38,29 @@ async function gemini(system: string, prompt: string, search = true, temperature
     if (res.ok) return ((data?.candidates?.[0]?.content?.parts) || []).map((p: any) => p.text || "").join("\n");
     last = `Gemini error ${res.status}: ${data?.error?.message || "unknown"}`;
     if (![404, 429, 500, 503].includes(res.status)) break;
-    await new Promise((r) => setTimeout(r, 3000));
+    await new Promise((r) => setTimeout(r, res.status === 429 ? 20000 : 3000));
   }
   throw new Error(last);
 }
+
+// Web search through Tavily (the free Gemini key cannot search Google itself).
+type Hit = { title: string; url: string; content: string; published?: string };
+async function webSearch(query: string, opts: Record<string, unknown> = {}): Promise<Hit[]> {
+  const key = Deno.env.get("TAVILY_API_KEY");
+  if (!key) throw new Error("TAVILY_API_KEY is not set in Supabase Edge Function secrets.");
+  const res = await fetch("https://api.tavily.com/search", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ api_key: key, query, topic: "general", search_depth: "advanced", max_results: 6, include_answer: false, include_raw_content: false, ...opts }), signal: AbortSignal.timeout(30000) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error("Search failed " + res.status + ": " + (data?.detail?.error || data?.detail || data?.message || "unknown"));
+  return (data.results || []).map((r: any) => ({ title: String(r.title || ""), url: String(r.url || ""), content: String(r.content || "").slice(0, 1500), published: r.published_date || undefined }));
+}
+async function research(queries: string[], opts: Record<string, unknown> = {}) {
+  const batches = await Promise.all(queries.slice(0, 4).map((q) => webSearch(q, opts).catch(() => [] as Hit[])));
+  const seen = new Set<string>(); const hits: Hit[] = [];
+  for (const b of batches) for (const h of b) if (h.url && !seen.has(h.url)) { seen.add(h.url); hits.push(h); }
+  return hits.slice(0, 18);
+}
+const evidenceText = (hits: Hit[]) => hits.map((h, i) => `[${i + 1}] ${h.title}\nURL: ${h.url}${h.published ? "\nPublished: " + h.published : ""}\n${h.content}`).join("\n\n");
 function lastJson(raw: string): any {
   const fenced = [...raw.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)].map((m) => m[1]);
   for (const c of [...fenced.reverse(), raw]) {
@@ -131,21 +150,41 @@ const STYLE = `Write like Nancy Bello's team at The Resident Bookkeeper: plain E
 async function writeGuide(admin: SupabaseClient) {
   const { data: existing } = await admin.from("trb_guides").select("title,topic").order("published_at", { ascending: false }).limit(200);
   const list = (existing || []).map((g: any) => "- " + g.title).join("\n");
-  const system = `You are Zara, Research & Business Development Manager at The Resident Bookkeeper. You research and write guides for ${SITE}/guides that help business owners and get cited by Google and AI assistants.\n${FACTS}\n${STYLE}`;
-  const draftRaw = await gemini(system, `Today is ${today()}.\n${TOPICS}\nGuides already published (do not repeat or closely overlap these):\n${list || "- none"}\n\nStep 1: use Google Search to find one question small business owners are actively asking now that is not covered above. Prefer timely questions (new laws, deadlines this quarter, common confusions). Step 2: research it from current, authoritative sources. Step 3: write the guide.\n${SHAPE}`, true, 0.6);
-  let draft = lastJson(draftRaw);
-  // Second pass: an independent fact-check against current sources.
-  const checkRaw = await gemini(`You are a strict fact-checker for a bookkeeping firm's website. Today is ${today()}. Check every figure, rate, threshold, deadline, law name and claim in the guide against current official sources using Google Search. Fix anything wrong or out of date, remove anything you cannot confirm, and keep the same JSON shape and style rules.\n${STYLE}\n${FACTS}`,
-    `Fact-check and correct this guide. Return ONLY the corrected JSON object (same keys), plus "checked": true and "corrections": [short notes].\n${JSON.stringify(draft)}`, true, 0.2);
-  try { const c = lastJson(checkRaw); if (c && c.title && c.body_html) draft = c; } catch { /* keep draft; validation still applies */ }
+  // 1. Find what owners are asking now.
+  const trendHits = await research([
+    "small business owners Nigeria questions bookkeeping tax 2026",
+    "Nigeria Revenue Service new guidance small businesses " + today().slice(0, 7),
+    "small business bookkeeping common questions " + today().slice(0, 4),
+  ], { search_depth: "basic", max_results: 5, time_range: "month" });
+  const plan = lastJson(await gemini(`You are Zara, Research & Business Development Manager at The Resident Bookkeeper. You plan guides for ${SITE}/guides.\n${FACTS}`,
+    `Today is ${today()}.\n${TOPICS}\nGuides already published (do not repeat or closely overlap these):\n${list || "- none"}\n\nRecent search results about what owners are dealing with:\n${evidenceText(trendHits)}\n\nChoose ONE useful new guide topic, phrased as the question an owner would ask. Prefer timely topics. Then write 3 web search queries that will find current, authoritative sources (laws, tax authority, government, regulators, big professional firms) to answer it. Return ONLY JSON: {"question": "...", "topic": "...", "queries": ["...", "...", "..."]}`, false, 0.7));
+  // 2. Research it.
+  const hits = await research(Array.isArray(plan.queries) ? plan.queries : [String(plan.question)]);
+  if (hits.length < 3) throw new Error("Not enough search results to research: " + plan.question);
+  const allowed = new Set(hits.map((h) => h.url));
+  const system = `You are Zara, Research & Business Development Manager at The Resident Bookkeeper. You write guides for ${SITE}/guides that help business owners and get cited by Google and AI assistants.\n${FACTS}\n${STYLE}\nUse ONLY the numbered evidence supplied for facts and figures. Never invent sources; every source URL must be copied exactly from the evidence.`;
+  let draft = lastJson(await gemini(system, `Today is ${today()}. Write the guide answering: ${plan.question}\n\nEvidence:\n${evidenceText(hits)}\n\n${SHAPE}`, false, 0.6));
+  // 3. Independent fact-check against the same evidence.
+  try {
+    const c = lastJson(await gemini(`You are a strict fact-checker for a bookkeeping firm's website. Today is ${today()}. Compare every figure, rate, threshold, deadline, law name and claim in the guide with the evidence. Remove or correct anything the evidence does not support, keep the same JSON shape, and keep sources limited to URLs in the evidence.\n${STYLE}\n${FACTS}`,
+      `Evidence:\n${evidenceText(hits)}\n\nGuide:\n${JSON.stringify(draft)}\n\nReturn ONLY the corrected JSON object (same keys), plus "corrections": [short notes].`, false, 0.2));
+    if (c && c.title && c.body_html) draft = c;
+  } catch { /* keep draft; validation still applies */ }
+  draft.sources = (Array.isArray(draft.sources) ? draft.sources : []).filter((x: any) => allowed.has(String(x?.url || "").trim()));
+  if (!draft.topic) draft.topic = plan.topic;
   const { guide, problems } = await validate(admin, draft, true);
   return { guide, problems, corrections: draft.corrections || [] };
 }
 
 async function reviewGuide(admin: SupabaseClient, g: any) {
-  const raw = await gemini(`You are Zara at The Resident Bookkeeper, keeping ${SITE}/guides accurate. Today is ${today()}. Use Google Search to check every figure, rate, threshold, deadline, law and claim in this guide against current official sources.\n${STYLE}\n${FACTS}`,
-    `Guide (JSON):\n${JSON.stringify({ title: g.title, seo_title: g.seo_title, description: g.description, answer: g.answer, body_html: g.body_html, faq: g.faq, sources: g.sources, slug: g.slug })}\n\nIf everything is still correct, return ONLY {"changed": false, "note": "what you checked"}.\nIf anything is wrong or out of date, return ONLY {"changed": true, "change_note": "plain summary of what changed and why", "guide": { full corrected guide with the same keys: title, seo_title, description, answer, body_html, faq, sources, slug (keep the same slug) }}. Keep everything that is still correct unchanged.`, true, 0.2);
-  return lastJson(raw);
+  const q = lastJson(await gemini(`You help keep a bookkeeping firm's guides accurate.`, `Today is ${today()}. Write 3 web search queries that would find the current official rules, rates, thresholds and deadlines mentioned in this guide.\nTitle: ${g.title}\nText: ${plain(g.answer + " " + g.body_html, 4000)}\nReturn ONLY JSON: {"queries": ["...", "...", "..."]}`, false, 0.3));
+  const hits = await research(Array.isArray(q.queries) ? q.queries : [g.title]);
+  if (hits.length < 2) throw new Error("Not enough search results to check the guide");
+  const allowed = new Set([...hits.map((h) => h.url), ...((g.sources || []) as any[]).map((x) => x.url)]);
+  const r = lastJson(await gemini(`You are Zara at The Resident Bookkeeper, keeping ${SITE}/guides accurate. Today is ${today()}. Compare every figure, rate, threshold, deadline, law and claim in the guide with the current evidence. Only change something when the evidence clearly shows it is wrong or out of date.\n${STYLE}\n${FACTS}`,
+    `Evidence:\n${evidenceText(hits)}\n\nGuide (JSON):\n${JSON.stringify({ title: g.title, seo_title: g.seo_title, description: g.description, answer: g.answer, body_html: g.body_html, faq: g.faq, sources: g.sources, slug: g.slug })}\n\nIf everything is still correct, return ONLY {"changed": false, "note": "what you checked"}.\nIf anything is wrong or out of date, return ONLY {"changed": true, "change_note": "plain summary of what changed and why", "guide": { full corrected guide with the same keys: title, seo_title, description, answer, body_html, faq, sources (existing sources plus any evidence URLs you relied on), slug (keep the same slug) }}. Keep everything that is still correct unchanged.`, false, 0.2));
+  if (r.guide) r.guide.sources = (Array.isArray(r.guide.sources) ? r.guide.sources : []).filter((x: any) => allowed.has(String(x?.url || "").trim()));
+  return r;
 }
 
 // ---------------- jobs ----------------
@@ -223,13 +262,22 @@ async function runAnswers(admin: SupabaseClient) {
   const { data: prev } = await admin.from("trb_approvals").select("payload").eq("owner_id", ownerId).contains("payload", { type: "community_answer" }).order("created_at", { ascending: false }).limit(300);
   const done = new Set((prev || []).map((r: any) => String(r.payload?.question_url || "")));
   const system = `You are Zara at The Resident Bookkeeper. You find public questions where business owners ask for help with bookkeeping, records, payroll, VAT or tax records, and draft helpful answers that Nancy Bello (founder, accountant with 15+ years' experience) will post herself under her own name.\n${FACTS}`;
-  const raw = await gemini(system, `Today is ${today()}. Use Google Search to find 4 real, recent public questions (ideally from the last 6 months, still open to answers) on Quora, Nairaland, Reddit, LinkedIn, Facebook public groups or business forums, asked by small business owners, freelancers or creators in Nigeria first, then the US, UK, Canada or Australia. Skip questions already answered by us:\n${[...done].slice(0, 60).join("\n") || "- none"}\n\nFor each question draft an answer in Nancy's voice (first person): genuinely useful on its own (120-250 words), plain English, British spelling, no hype, no emojis, no em dashes; give the practical steps; never give personalised tax advice or claim TRB files tax; only state a figure if you are sure it is current and say which law it comes from. Disclose naturally that she runs a bookkeeping firm. Include at most one link, only where it truly helps, choosing from our guides:\n${guideList || "- none yet"}\nor ${SITE}. Respect each platform's self-promotion rules (on Reddit, usually no link).\n\nReturn ONLY JSON: {"items":[{"platform": "Quora", "question": "exact question title", "question_url": "https://direct link to the question page", "why": "why this is a good fit", "answer": "the drafted answer", "link_used": "url or empty"}]}`, true, 0.5);
+  const hits = await research([
+    "bookkeeping question small business Nigeria site:nairaland.com",
+    "small business tax records bookkeeping question site:quora.com",
+    "small business bookkeeping help question site:reddit.com",
+    "PAYE VAT records question small business owner Nigeria forum",
+  ], { search_depth: "basic", max_results: 6, time_range: "year" });
+  const fresh = hits.filter((h) => !done.has(h.url));
+  if (!fresh.length) throw new Error("No new public questions found in search results");
+  const allowedQ = new Set(fresh.map((h) => h.url));
+  const raw = await gemini(system, `Today is ${today()}. Below are search results from public sites. Pick up to 4 that are genuine questions from small business owners, freelancers or creators (Nigeria first) about bookkeeping, records, payroll, VAT or tax records, where a helpful answer would still be useful. Skip news articles, adverts and anything that is not a question.\n\nResults:\n${evidenceText(fresh)}\n\nFor each one draft an answer in Nancy's voice (first person): genuinely useful on its own (120-250 words), plain English, British spelling, no hype, no emojis, no em dashes; give the practical steps; never give personalised tax advice or claim TRB files tax; only state a figure if you are sure it is current and say which law it comes from. Disclose naturally that she runs a bookkeeping firm. Include at most one link, only where it truly helps, choosing from our guides:\n${guideList || "- none yet"}\nor ${SITE}. Respect each platform's self-promotion rules (on Reddit, usually no link).\n\nReturn ONLY JSON: {"items":[{"platform": "Quora", "question": "the question as asked", "question_url": "URL copied exactly from the results", "why": "why this is a good fit", "answer": "the drafted answer", "link_used": "url or empty"}]}`, false, 0.5);
   const items = (lastJson(raw).items || []).slice(0, 5);
   const saved: string[] = [], skipped: string[] = [];
   for (const it of items) {
     const qurl = String(it.question_url || "").trim();
     const answer = plain(it.answer, 3000), question = plain(it.question, 300);
-    if (!/^https:\/\/[^\s"<>]+$/.test(qurl) || /vertexaisearch|google\.com\/search/.test(qurl) || done.has(qurl)) { skipped.push(question + ": bad or repeated link"); continue; }
+    if (!allowedQ.has(qurl) || done.has(qurl)) { skipped.push(question + ": bad or repeated link"); continue; }
     if (answer.split(" ").length < 60 || !question) { skipped.push(question + ": answer too short"); continue; }
     if (!(await urlAlive(qurl))) { skipped.push(question + ": question page not reachable"); continue; }
     const platform = plain(it.platform, 40) || "Web";
@@ -267,7 +315,8 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   const action = String(body.action || "");
   if (action === "write" || action === "review" || action === "answers") {
-    const job = action === "write" ? runWrite(admin) : action === "review" ? runReview(admin) : runAnswers(admin);
+    const job = action === "write" ? runWrite(admin) : action === "review" ? runReview(admin)
+      : runAnswers(admin).catch(async (e) => { const o = await owner(admin); await log(admin, o, "community_answers", "failed", "Could not draft answers: " + String((e as Error)?.message || e)); return { ok: false }; });
     if (body.wait === true) return json(await job);
     // Research takes a few minutes: run in the background and answer at once.
     // @ts-ignore EdgeRuntime is provided by Supabase
