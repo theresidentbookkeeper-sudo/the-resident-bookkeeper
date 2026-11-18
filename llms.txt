@@ -47,10 +47,7 @@ Other countries: quoted in US dollars after the free Books Health Check.
 - Guides: https://residentbookkeeper.com/guides
 
 ## Guides
-- How much does a bookkeeper cost in Nigeria in 2026?: https://residentbookkeeper.com/guides/bookkeeper-cost-nigeria
-- What records do I need to file company tax in Nigeria?: https://residentbookkeeper.com/guides/records-for-company-tax-nigeria
-- How to calculate PAYE for your staff in Nigeria (2026): https://residentbookkeeper.com/guides/how-to-calculate-paye-nigeria
-- What is catch-up bookkeeping, and do I need it?: https://residentbookkeeper.com/guides/catch-up-bookkeeping
+{{GUIDES}}
 
 ## Contact
 Email: info@residentbookkeeper.com

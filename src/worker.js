@@ -1,10 +1,15 @@
-// residentbookkeeper.com on Cloudflare: serves the website, and handles email sent to @residentbookkeeper.com.
+// residentbookkeeper.com on Cloudflare: serves the website (with guides from the database), and handles email sent to @residentbookkeeper.com.
 // Email:
 //   - addresses in GMAIL_ADDRESSES (info@) are forwarded to Gmail and copied to the portal inbox;
 //   - every other address (the team's work email) goes to the portal inbox only.
 //     If the portal cannot take it, it is forwarded to Gmail instead, so nothing is ever lost.
+import { handleGuides } from "./guides.js";
+
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
+    // Guides, the sitemap and llms.txt include guides from the portal database (see src/guides.js).
+    const guides = await handleGuides(request, env, ctx);
+    if (guides) return guides;
     return env.ASSETS.fetch(request);
   },
   async email(message, env, ctx) {
