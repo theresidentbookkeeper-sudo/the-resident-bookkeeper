@@ -43,7 +43,7 @@ function fill(tpl, { title, description, url, ld, body, type = "article" }) {
   const head = `<title>${esc(title)}</title><meta name="description" content="${esc(description)}">` +
     `<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1"><link rel="canonical" href="${url}">` +
     `<meta property="og:type" content="${type}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}">` +
-    `<meta property="og:url" content="${url}"><meta property="og:image" content="${SITE}/assets/trb-social-cover.png"><meta name="twitter:card" content="summary_large_image">`;
+    `<meta property="og:url" content="${url}"><meta property="og:image" content="${SITE}/assets/trb-share-2026.png"><meta name="twitter:card" content="summary_large_image">`;
   const ldTag = `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, "\\u003c")}</script>`;
   return tpl.replace("<!--TRB:HEAD-->", head).replace("<!--TRB:LD-->", ldTag).replace("<!--TRB:BODY-->", body);
 }
@@ -56,7 +56,7 @@ function guidePage(tpl, g, others) {
   const author = nancy ? { "@id": NANCY["@id"] } : ORG;
   const graph = [
     { "@type": "Article", "@id": url + "#article", headline: g.title, description: g.description, author, publisher: ORG,
-      datePublished: day(g.published_at), dateModified: day(g.updated_at), mainEntityOfPage: url, image: `${SITE}/assets/trb-social-cover.png`,
+      datePublished: day(g.published_at), dateModified: day(g.updated_at), mainEntityOfPage: url, image: `${SITE}/assets/trb-share-2026.png`,
       inLanguage: "en", abstract: g.answer, citation: sources.map((s) => s.url) },
     { "@type": "FAQPage", "@id": url + "#faq", mainEntity: faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })) },
     { "@type": "BreadcrumbList", itemListElement: [
