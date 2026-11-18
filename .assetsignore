@@ -10,3 +10,4 @@ wrangler.jsonc
 src
 package.json
 package-lock.json
+guides-seed.json

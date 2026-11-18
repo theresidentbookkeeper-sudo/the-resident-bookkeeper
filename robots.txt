@@ -9,6 +9,7 @@ Allow: /bookslite-start
 Disallow: /books-lite
 Disallow: /client-dashboard
 Disallow: /workspace
+Disallow: /assets/guide-shell.html
 Disallow: /firmbook/
 
 User-agent: OAI-SearchBot
@@ -22,6 +23,7 @@ Allow: /bookslite-start
 Disallow: /books-lite
 Disallow: /client-dashboard
 Disallow: /workspace
+Disallow: /assets/guide-shell.html
 Disallow: /firmbook/
 
 User-agent: GPTBot
@@ -35,6 +37,7 @@ Allow: /bookslite-start
 Disallow: /books-lite
 Disallow: /client-dashboard
 Disallow: /workspace
+Disallow: /assets/guide-shell.html
 Disallow: /firmbook/
 
 Sitemap: https://residentbookkeeper.com/sitemap.xml
