@@ -12,15 +12,31 @@ const SIGN = "\n\nBest regards\nNani\nRESIDENT BOOKKEEPER";
 // What each held-back document answers. A request can match several.
 const DOCS: [string, RegExp, string][] = [
   ["Bank statement 2025-07 Zenova 4417.pdf", /\bjul(y)?\b[\s\S]*\b(statement|bank)|\b(statement|bank)\b[\s\S]*\bjul(y)?\b|missing (bank )?statement|statement gap/, "bank_statement"],
-  ["Asset purchase invoices 2025.pdf", /\basset|equipment|freezer|oven|generator|fixed asset|capital (purchase|expenditure)/, "receipt_or_invoice"],
-  ["Moniepoint POS settlement reports 2025.pdf", /\bpos\b|moniepoint|settlement|card (sales|payments)|terminal/, "requested_document"],
+  ["Asset purchase invoices 2025.pdf", /\basset|equipment|freezer|oven|cooker|generator|laptop|powerline|coolpoint|compuplus|fixed asset|capital (purchase|expenditure)/, "receipt_or_invoice"],
+  ["Moniepoint POS settlement reports 2025.pdf", /moniepoint|settlement|\bpos (report|statement|summar|charge|fee|settle|sales report)|card (sales|payments)|terminal/, "requested_document"],
   ["Payroll schedules 2025.xlsx", /payroll|salar|wage|payslip|staff (pay|cost|list)|employees? (list|schedule)/, "requested_document"],
   ["Stock count 31 Dec 2025.pdf", /stock|inventory/, "requested_document"],
   ["Supplier statements 2025 (Mile12 and Fresh Farms).pdf", /supplier|vendor statement|mile ?12|fresh farm|creditor/, "requested_document"],
   ["Tax and pension payment receipts 2025.pdf", /(tax|pension|paye|vat|remittance|nsitf)[\s\S]*(receipt|evidence|proof|payment)|(receipt|evidence|proof)[\s\S]*(tax|pension|paye|vat|remit)/, "receipt_or_invoice"],
-  ["Tenancy agreement summary.pdf", /tenan|\brent\b|lease|landlord|premises/, "requested_document"],
+  ["Tenancy agreement summary.pdf", /tenan|\brent\b|\blease\b|landlord|premises/, "requested_document"],
   ["WHT credit notes from Greenfield 2025.pdf", /\bwht\b|withholding|credit note|greenfield/, "requested_document"],
-  ["Zenova loan offer letter and repayment schedule.pdf", /\bloan|repayment schedule|borrow|facility letter|offer letter/, "requested_document"],
+  ["Zenova loan offer letter and repayment schedule.pdf", /\bloan|repayment schedule|borrow|facility letter|offer letter|3,?000,?000/, "requested_document"],
+];
+// Kemi's answers (from the reviewer guide's Client answers sheet). "none" = Kemi doesn't have it; "send" also releases a document.
+const TAXR = "Tax and pension payment receipts 2025.pdf";
+const ANSWERS: { re: RegExp; reply: string; none?: boolean; send?: string }[] = [
+  { re: /\bvat\b[\s\S]*(schedule|return|computation|working|analysis|listing|breakdown)|(schedule|return|computation|working)s?[\s\S]*\bvat\b/, none: true, send: TAXR,
+    reply: "I don't have any VAT schedules or VAT returns. I just pay the VAT every month. All I have are the payment receipts, which I've sent (Tax and pension payment receipts 2025)." },
+  { re: /okafor|86,?000/, reply: "That was Mr Chidi Okafor paying in advance for his birthday party on 5 July. I sent him an invoice for July." },
+  { re: /transfers? to kemi|150,?000|salary[\s\S]{0,20}kemi|drawings/, reply: "Those are for me, personal. I don't take a salary." },
+  { re: /bright ?minds|montessori|school fees|350,?000/, reply: "That is my son's school fees. I paid it from the business account by mistake." },
+  { re: /500,?000|(money|transfer|credit) from kemi|kemi adeyemi[\s\S]{0,30}(credit|paid in|deposit)/, reply: "I put my own money in when the account was a bit low." },
+  { re: /3,?000,?000|zenova[\s\S]{0,30}(credit|14 mar)/, reply: "That is my loan. I've sent the offer letter." },
+  { re: /duplicate|312,?800|refund/, reply: "The network failed and the money went twice. Mile12 sent it back in May." },
+  { re: /powerline|coolpoint|compuplus/, reply: "Generator, the new gas cooker and a laptop. I've sent the invoices." },
+  { re: /greenfield[\s\S]{0,60}(less|short|underpa|deduct|difference)|(less|short|underpa|deduct|difference)[\s\S]{0,60}greenfield/, reply: "They deduct tax. They give me credit notes. I've sent them." },
+  { re: /opening balance|2,?162,?000|2,?150,?000/, reply: "I don't know. Use what the accountant gave." },
+  { re: /128,?000|fresh farms?[\s\S]{0,40}(12|13|reversal|reversed|failed)/, reply: "The first transfer failed and the bank reversed it, so I sent it again." },
 ];
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { "Content-Type": "application/json" } });
 const b64 = (u: Uint8Array) => { let s = ""; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); };
@@ -57,12 +73,15 @@ Deno.serve(async (req) => {
   const { data: emp } = await admin.from("employees").select("name,work_email,email").eq("portal_user_id", r.created_by).maybeSingle();
   const who = emp?.name || "the bookkeeper", first = who.split(" ")[0], to = emp?.work_email || emp?.email || "";
   const text = `${r.title} ${r.details || ""}`.toLowerCase();
-  const hits = DOCS.filter(([, re]) => re.test(text));
+  const answers = ANSWERS.filter((a) => a.re.test(text));
+  const names = new Set(DOCS.filter(([, re]) => re.test(text)).map(([n]) => n));
+  answers.forEach((a) => a.send && names.add(a.send));
+  const hits = DOCS.filter(([n]) => names.has(n));
 
-  if (!hits.length) {
+  if (!hits.length && !answers.length) {
     if (!body.quiet) await mail(NANCY, `Practice request not answered: ${who} asked for "${r.title}"`,
-      `Hello Nancy,\n\n${who} asked ${c.name} for:\n${r.title}${r.details ? "\n" + r.details : ""}\n\nNothing in the held-back folder matches this, so I have not sent anything and the request is still open. It may already be in Batch 1, or it may be something Kemi does not have. Tell me what to send, or reply to ${first} yourself.${SIGN}`);
-    await admin.from("trb_ai_work_log").insert({ owner_id: r.owner_id, employee_id: "nani", job: "practice_request", status: "skipped", summary: `${who} asked for "${r.title}" on ${c.name}: no matching practice document.`, proof: { request_id: r.id } });
+      `Hello Nancy,\n\n${who} asked ${c.name} for:\n${r.title}${r.details ? "\n" + r.details : ""}\n\nNothing in the held-back folder or Kemi's answers matches this, so I have not replied and the request is still open. Tell me what Kemi should say, or reply to ${first} yourself.${SIGN}`);
+    await admin.from("trb_ai_work_log").insert({ owner_id: r.owner_id, employee_id: "nani", job: "practice_request", status: "skipped", summary: `${who} asked for "${r.title}" on ${c.name}: no matching practice document or answer.`, proof: { request_id: r.id } });
     return json({ ok: true, sent: [] });
   }
 
@@ -76,15 +95,17 @@ Deno.serve(async (req) => {
     await admin.from("client_files").insert({ owner_id: r.owner_id, client_id: c.id, request_id: r.id, category, file_name: name, storage_path: path, note: `Sent by Nani for Kemi (practice client) in answer to "${r.title}".`, uploaded_by: null, uploader: "client" });
     files.push({ name, bytes });
   }
-  await admin.from("client_document_requests").update({ status: "uploaded", updated_at: new Date().toISOString() }).eq("id", r.id);
+  // Received if a file went; otherwise closed (Kemi answered, or doesn't have it).
+  await admin.from("client_document_requests").update({ status: files.length ? "uploaded" : "cancelled", updated_at: new Date().toISOString() }).eq("id", r.id);
   const list = files.map((f) => "- " + f.name).join("\n");
+  const said = answers.map((a) => `"${a.reply}"`).join("\n\n");
   if (!body.quiet) {
     await mail(to, `${r.title} - Kemi's Kitchen`,
-      `Hello ${first},\n\nHere is what you asked Kemi's Kitchen for ("${r.title}"):\n${list}\n\nThe file${files.length > 1 ? "s are" : " is"} attached and also in the client's files in your workspace, and your request is marked received. As Kemi's Kitchen is a practice client, I answer these requests on Kemi's behalf.${SIGN}`,
+      `Hello ${first},\n\nI passed your request ("${r.title}") to Kemi.${said ? `\n\nKemi says:\n${said}` : ""}${files.length ? `\n\n${files.length > 1 ? "These are" : "This is"} attached and also in the client's files in your workspace:\n${list}` : ""}\n\nYour request is marked ${files.length ? "received" : "closed"}. As Kemi's Kitchen is a practice client, I answer these requests on Kemi's behalf.${SIGN}`,
       files.map((f) => ({ filename: f.name, content: b64(f.bytes) })));
-    await mail(NANCY, `Practice document sent to ${who}: ${r.title}`,
-      `Hello Nancy,\n\n${who} asked ${c.name} for:\n${r.title}${r.details ? "\n" + r.details : ""}\n\nI sent ${first} (${to}):\n${list}\n\nThe request is marked received.${SIGN}`);
+    await mail(NANCY, `Practice request answered for ${who}: ${r.title}`,
+      `Hello Nancy,\n\n${who} asked ${c.name} for:\n${r.title}${r.details ? "\n" + r.details : ""}\n\n${said ? `I replied as Kemi:\n${said}\n\n` : ""}${files.length ? `I sent ${first} (${to}):\n${list}\n\n` : ""}The request is marked ${files.length ? "received" : "closed"}.${SIGN}`);
   }
-  await admin.from("trb_ai_work_log").insert({ owner_id: r.owner_id, employee_id: "nani", job: "practice_request", status: "done", summary: `Sent ${files.map((f) => f.name).join(", ")} to ${who} for "${r.title}" (${c.name}).`, proof: { request_id: r.id, files: files.map((f) => f.name) } });
-  return json({ ok: true, sent: files.map((f) => f.name) });
+  await admin.from("trb_ai_work_log").insert({ owner_id: r.owner_id, employee_id: "nani", job: "practice_request", status: "done", summary: `Answered "${r.title}" for ${who} (${c.name})${files.length ? ": sent " + files.map((f) => f.name).join(", ") : ""}${answers.length ? ", with Kemi's reply" : ""}.`, proof: { request_id: r.id, files: files.map((f) => f.name), answers: answers.map((a) => a.reply) } });
+  return json({ ok: true, sent: files.map((f) => f.name), answered: answers.length });
 });
