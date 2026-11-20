@@ -26,7 +26,9 @@ const DOCS: [string, RegExp, string][] = [
 const TAXR = "Tax and pension payment receipts 2025.pdf";
 const ANSWERS: { re: RegExp; reply: string; none?: boolean; send?: string }[] = [
   { re: /\bvat\b[\s\S]*(schedule|return|computation|working|analysis|listing|breakdown)|(schedule|return|computation|working)s?[\s\S]*\bvat\b/, none: true, send: TAXR,
-    reply: "I don't have any VAT schedules or VAT returns. I just pay the VAT every month. All I have are the payment receipts, which I've sent (Tax and pension payment receipts 2025)." },
+    reply: "I don't have VAT computation schedules or VAT returns for 2025. I never prepared any workings. Each month I just paid what I thought was right from my sales, and the payment receipts are all I have (Tax and pension payment receipts 2025). Please work it out from my invoices and POS records." },
+  { re: /(techbridge|brightstar|greenfield|lekki|customer|sales)[\s\S]{0,40}invoices?|invoices?[\s\S]{0,40}(techbridge|brightstar|lekki|issued to|to customers)/, none: true,
+    reply: "Those are in the sales invoices I already sent you: one file for each month of 2025 (Sales invoices 2025-01 to 2025-12). Every invoice I issued is in there." },
   { re: /okafor|86,?000/, reply: "That was Mr Chidi Okafor paying in advance for his birthday party on 5 July. I sent him an invoice for July." },
   { re: /transfers? to kemi|150,?000|salary[\s\S]{0,20}kemi|drawings/, reply: "Those are for me, personal. I don't take a salary." },
   { re: /bright ?minds|montessori|school fees|350,?000/, reply: "That is my son's school fees. I paid it from the business account by mistake." },
