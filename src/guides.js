@@ -79,6 +79,7 @@ function guidePage(tpl, g, others) {
 <div class="answer"><strong>Short answer</strong>${esc(g.answer)}</div>
 ${g.body_html}
 <h2 id="faq">Common questions</h2><div class="faq">${faq.map((f) => `<details><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join("")}</div>
+${helpBox(g)}
 ${src}
 ${authorBox}
 <p class="updated">Last updated <time datetime="${day(g.updated_at)}">${nice(g.updated_at)}</time>. General information only, not tax or legal advice.</p>
@@ -86,6 +87,30 @@ ${authorBox}
 </article></div></section>`;
   return fill(tpl, { title: `${g.seo_title || g.title} | The Resident Bookkeeper`, description: g.description, url, ld: { "@context": "https://schema.org", "@graph": graph }, body });
 }
+
+// Closing "how we can help" box on every guide (Nancy, 22 Nov 2026): the TRB service that fits the guide
+// (Books Lite for general small-business topics) plus every way to reach us.
+const HELP = {
+  books_lite: `If you run a small business, freelance or create content, <b>TRB Books Lite is the best place to start</b>: simple monthly bookkeeping for ₦100,000 a year (up to 100 transactions a month and 2 accounts). <a href="/bookslite-start">Start Books Lite</a>.`,
+  monthly: `For businesses with more going on, our <b>monthly bookkeeping plans</b> (Essentials, Growth and Premium) keep every account reconciled and your records tax-ready all year. Smaller businesses can start with <a href="/bookslite-start">TRB Books Lite</a>.`,
+  catch_up: `If your books are months behind, our <b>catch-up bookkeeping</b> rebuilds the missing months and reconciles every account, so you can file and plan with confidence.`,
+  clean_up: `If your records are messy or wrong, our <b>clean-up service</b> fixes them and gives you a clean, reconciled starting point.`,
+  payroll: `Need help with salaries and PAYE? Our <b>payroll support</b> keeps payslips, deductions and PAYE schedules in order every month.`,
+  reconciliation: `Our <b>bank reconciliation service</b> matches every account to your records each month and flags anything missing or duplicated.`,
+  software: `Still on Excel? We <b>set up Zoho, Sage or the software you choose</b>, move your records across and train your team to use it.`,
+};
+function helpKey(g) {
+  const t = `${g.title} ${g.topic || ""}`.toLowerCase();
+  if (/payroll|paye|salar|payslip/.test(t)) return "payroll";
+  if (/catch[- ]?up|behind|backlog|months of/.test(t)) return "catch_up";
+  if (/clean[- ]?up|messy|wrong records/.test(t)) return "clean_up";
+  if (/reconcil/.test(t)) return "reconciliation";
+  if (/software|zoho|quickbooks|sage|excel|spreadsheet/.test(t)) return "software";
+  if (/hire|cost of|outsourc|growing business|monthly bookkeep/.test(t)) return "monthly";
+  return "books_lite";
+}
+const helpBox = (g) => `<div class="answer" style="margin-top:32px"><strong>How The Resident Bookkeeper can help</strong><p style="margin:.4em 0 .8em">${HELP[helpKey(g)]}</p>
+<p style="margin:0"><b>Talk to us:</b> Call or WhatsApp <a href="tel:+2348026000078">+234 802 600 0078</a> (<a href="https://wa.me/2348026000078" rel="noopener">chat on WhatsApp</a>) · Instagram <a href="https://www.instagram.com/theresidentbookkeeper/" rel="noopener">@theresidentbookkeeper</a> · Facebook <a href="https://www.facebook.com/residentbookkeeper" rel="noopener">The Resident Bookkeeper</a> · Website <a href="/">residentbookkeeper.com</a></p></div>`;
 
 function indexPage(tpl, list) {
   const url = SITE + "/guides";

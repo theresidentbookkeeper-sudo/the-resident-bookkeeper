@@ -152,7 +152,7 @@ async function validate(admin: SupabaseClient, g: any, isNew: boolean) {
 // ---------------- prompts ----------------
 const SHAPE = `Return ONLY one JSON object:
 {"topic": string, "slug": "short-url-words", "title": "the question, as a business owner would ask it", "seo_title": "under 65 characters", "description": "under 155 characters", "answer": "2-4 sentence direct answer that stands alone (no HTML)", "body_html": "HTML using only <h2>, <h3>, <p>, <ul class=\\"ticks\\">, <ol class=\\"gsteps\\">, <li>, <strong>, <table> with <thead>/<tbody>/<tr>/<th>/<td>. 700-1400 words, at least 4 <h2> sections, practical, with a checklist or table where useful. Use <ol class=\\"gsteps\\"> for numbered steps and <ul class=\\"ticks\\"> for bullet lists.", "faq": [{"q": "...", "a": "..."}] (exactly 3), "sources": [{"title": "...", "url": "https://..."}] (3 to 6 real, specific pages you used: official sites such as government, tax authority, laws, regulators or large professional firms; full direct URLs, never search links)}`;
-const STYLE = `Write like Nancy Bello's team at The Resident Bookkeeper: plain English, short sentences, British spelling, warm and practical, no hype, no emojis, no em dashes. Start sections with the answer. Explain terms the first time (e.g. "bank reconciliation (matching your records to your bank statement)"). Where tax is involved, show how good records help with it, but never give personalised tax advice or claim TRB files tax. Only state a figure (rate, threshold, deadline, penalty) if it comes from a current source you cite; say which law or authority it comes from and the year. If sources disagree, leave the figure out. Mention TRB at most twice: one short closing paragraph on how TRB can help and the free Books Health Check. Never include a price list or plan table; at most one sentence may mention a single relevant price. Use terms correctly: bank reconciliation means matching your records to your bank statement; bookkeeping means recording every sale and expense. Teach the reader something practical in every section (steps, examples, checklists).`;
+const STYLE = `Write like Nancy Bello's team at The Resident Bookkeeper: plain English, short sentences, British spelling, warm and practical, no hype, no emojis, no em dashes. Start sections with the answer. Explain terms the first time (e.g. "bank reconciliation (matching your records to your bank statement)"). Where tax is involved, show how good records help with it, but never give personalised tax advice or claim TRB files tax. Only state a figure (rate, threshold, deadline, penalty) if it comes from a current source you cite; say which law or authority it comes from and the year. If sources disagree, leave the figure out. Mention TRB at most once in the article text and do not write a closing paragraph about TRB or list contact details: the website adds a "How The Resident Bookkeeper can help" box with the right product and all our contacts. Never include a price list or plan table; at most one sentence may mention a single relevant price. Use terms correctly: bank reconciliation means matching your records to your bank statement; bookkeeping means recording every sale and expense. Teach the reader something practical in every section (steps, examples, checklists).`;
 
 async function writeGuide(admin: SupabaseClient) {
   const { data: existing } = await admin.from("trb_guides").select("title,topic").order("published_at", { ascending: false }).limit(200);
@@ -262,6 +262,19 @@ async function runReview(admin: SupabaseClient) {
 
 // Community answers: Zara finds real public questions business owners are asking (Quora, Nairaland, Reddit,
 // LinkedIn, forums) and drafts answers for Nancy to post herself. Nothing is posted automatically.
+// Every forum answer ends with the TRB product that fits the question and all our contacts (Nancy, 22 Nov 2026).
+const ANSWER_PRODUCT: Record<string, string> = {
+  books_lite: "If you run a small business, freelance or create content, our TRB Books Lite is the best place to start: simple monthly bookkeeping for ₦100,000 a year (up to 100 transactions a month and 2 accounts).",
+  monthly: "If your business has more going on, our monthly bookkeeping plans keep every account reconciled and your records tax-ready all year. Smaller businesses can start with TRB Books Lite.",
+  catch_up: "If your books are months behind, our catch-up bookkeeping rebuilds the missing months and reconciles every account.",
+  clean_up: "If your records are messy or wrong, our clean-up service fixes them and gives you a clean, reconciled starting point.",
+  payroll: "If salaries and PAYE are the headache, our payroll support keeps payslips, deductions and PAYE schedules in order every month.",
+  reconciliation: "Our bank reconciliation service matches every account to your records each month and flags anything missing or duplicated.",
+  software: "If you are still on Excel, we set up Zoho, Sage or the software you choose, move your records across and train your team.",
+};
+const CONTACTS = "Call or WhatsApp: +234 802 600 0078\nInstagram: @theresidentbookkeeper\nFacebook: facebook.com/residentbookkeeper\nWebsite: residentbookkeeper.com";
+const answerClosing = (product: string) => `${ANSWER_PRODUCT[product] || ANSWER_PRODUCT.books_lite}\n\n${CONTACTS}`;
+
 async function runAnswers(admin: SupabaseClient) {
   const ownerId = await owner(admin);
   const { data: guides } = await admin.from("trb_guides").select("title,slug").eq("status", "published").limit(200);
@@ -278,12 +291,13 @@ async function runAnswers(admin: SupabaseClient) {
   const fresh = hits.filter((h) => !done.has(h.url));
   if (!fresh.length) throw new Error("No new public questions found in search results");
   const allowedQ = new Set(fresh.map((h) => h.url));
-  const raw = await gemini(system, `Today is ${today()}. Below are search results from public sites. Pick up to 4 that are genuine questions from small business owners, freelancers or creators (Nigeria first) about bookkeeping, records, payroll, VAT or tax records, where a helpful answer would still be useful. Skip news articles, adverts and anything that is not a question.\n\nResults:\n${evidenceText(fresh)}\n\nFor each one draft an answer in Nancy's voice (first person): genuinely useful on its own (120-250 words), plain English, British spelling, no hype, no emojis, no em dashes; give the practical steps; never give personalised tax advice or claim TRB files tax; only state a figure if you are sure it is current and say which law it comes from. Disclose naturally that she runs a bookkeeping firm. Include at most one link, only where it truly helps, choosing from our guides:\n${guideList || "- none yet"}\nor ${SITE}. Respect each platform's self-promotion rules (on Reddit, usually no link).\n\nReturn ONLY JSON: {"items":[{"platform": "Quora", "question": "the question as asked", "question_url": "URL copied exactly from the results", "why": "why this is a good fit", "answer": "the drafted answer", "link_used": "url or empty"}]}`, false, 0.5);
+  const raw = await gemini(system, `Today is ${today()}. Below are search results from public sites. Pick up to 4 that are genuine questions from small business owners, freelancers or creators (Nigeria first) about bookkeeping, records, payroll, VAT or tax records, where a helpful answer would still be useful. Skip news articles, adverts and anything that is not a question.\n\nResults:\n${evidenceText(fresh)}\n\nFor each one draft an answer in Nancy's voice (first person): genuinely useful on its own (120-250 words), plain English, British spelling, no hype, no emojis, no em dashes; give the practical steps; never give personalised tax advice or claim TRB files tax; only state a figure if you are sure it is current and say which law it comes from. Disclose naturally that she runs a bookkeeping firm. Do NOT write a closing about TRB or any contact details: the system adds one closing line about the TRB product you choose, plus our phone/WhatsApp, Instagram, Facebook and website. Choose "product" as the TRB service that best fits the question: books_lite (small businesses, freelancers, creators, sole traders: the default), monthly (growing businesses with more activity), catch_up (books months behind), clean_up (messy or wrong records), payroll (salaries, PAYE), reconciliation (bank accounts not matching), software (moving from Excel to Zoho, Sage or other software). You may include one link in the body only where it truly helps, choosing from our guides:\n${guideList || "- none yet"}\n\nReturn ONLY JSON: {"items":[{"platform": "Quora", "question": "the question as asked", "question_url": "URL copied exactly from the results", "why": "why this is a good fit", "answer": "the drafted answer", "product": "books_lite | monthly | catch_up | clean_up | payroll | reconciliation | software", "link_used": "url or empty"}]}`, false, 0.5);
   const items = (lastJson(raw).items || []).slice(0, 5);
   const saved: string[] = [], skipped: string[] = [];
   for (const it of items) {
     const qurl = String(it.question_url || "").trim();
-    const answer = plain(it.answer, 3000), question = plain(it.question, 300);
+    const product = ANSWER_PRODUCT[String(it.product || "")] ? String(it.product) : "books_lite";
+    const answer = plain(it.answer, 3000) + "\n\n" + answerClosing(product), question = plain(it.question, 300);
     if (!allowedQ.has(qurl) || done.has(qurl)) { skipped.push(question + ": bad or repeated link"); continue; }
     if (answer.split(" ").length < 60 || !question) { skipped.push(question + ": answer too short"); continue; }
     if (!(await urlAlive(qurl))) { skipped.push(question + ": question page not reachable"); continue; }
@@ -292,7 +306,7 @@ async function runAnswers(admin: SupabaseClient) {
       owner_id: ownerId, employee_id: "zara", kind: "other", status: "pending",
       title: `Answer on ${platform}: ${question}`.slice(0, 200),
       body: answer,
-      payload: { type: "community_answer", channel: "manual", platform, question, question_url: qurl, why: plain(it.why, 300), link_used: String(it.link_used || ""), note: "Post this yourself from your own account, then mark it done. Edit freely; it is written in your voice." },
+      payload: { type: "community_answer", channel: "manual", platform, question, question_url: qurl, why: plain(it.why, 300), product, link_used: String(it.link_used || ""), note: "Post this yourself from your own account, then mark it done. Edit freely; it is written in your voice." },
     });
     done.add(qurl); saved.push(`${platform}: ${question}`);
   }
