@@ -275,7 +275,7 @@ Aim for 5 prospects (at least 3 whenever the evidence names suitable businesses)
       "site:reddit.com small business need a bookkeeper accountant payroll 2026",
       "small business hiring bookkeeper accountant outsourced finance support " + ym
     ];
-    const batches = await Promise.all(queries.map((q) => tavilySearch(q)));
+    const batches = await Promise.all(queries.map((q) => tavilySearch(q, "basic", "month").catch(() => [])));
     const evidence = batches.flat().slice(0, 25).map((r: any) => ({ title: r.title, url: r.url, content: String(r.content || "").slice(0, 1200), published_date: r.published_date || null }));
     const groundedAsk = ask + "\n\nLIVE SEARCH EVIDENCE (use only these results; cite exact URLs; distinguish active public recommendation requests from general articles; do not invent posting dates or intent):\n" + JSON.stringify(evidence);
     text = await gemini(system.replace("Use web search.", "Use only the supplied live search evidence; do not invent sources."), groundedAsk, false);
