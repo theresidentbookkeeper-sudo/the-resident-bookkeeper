@@ -109,7 +109,7 @@ function helpKey(g) {
   if (/hire|cost of|outsourc|growing business|monthly bookkeep/.test(t)) return "monthly";
   return "books_lite";
 }
-const helpBox = (g) => `<div class="answer" style="margin-top:32px"><strong>How The Resident Bookkeeper can help</strong><p style="margin:.4em 0 .8em">${HELP[helpKey(g)]}</p>
+const helpBox = (g) => `<div class="answer" style="margin-top:32px"><strong>How The Resident Bookkeeper can help</strong><p style="margin:.4em 0 .8em">${HELP[helpKey(g)]} Your books are managed by our team of bookkeepers, with every file reviewed by our lead accountant, so you never rely on one person.</p>
 <p style="margin:0"><b>Talk to us:</b> Call or WhatsApp <a href="tel:+2348026000078">+234 802 600 0078</a> (<a href="https://wa.me/2348026000078" rel="noopener">chat on WhatsApp</a>) · Instagram <a href="https://www.instagram.com/theresidentbookkeeper/" rel="noopener">@theresidentbookkeeper</a> · Facebook <a href="https://www.facebook.com/residentbookkeeper" rel="noopener">The Resident Bookkeeper</a> · Website <a href="/">residentbookkeeper.com</a></p></div>`;
 
 function indexPage(tpl, list) {
