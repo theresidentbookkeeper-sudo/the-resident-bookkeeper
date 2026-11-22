@@ -13,8 +13,8 @@ const MODEL = "claude-sonnet-4-5";
 const SITE = "https://residentbookkeeper.com";
 const MARKETS = ["Nigeria", "United States", "United Kingdom", "Canada", "Australia"];
 const SERVICES = "monthly bookkeeping and bank reconciliation, catch-up/clean-up bookkeeping, management accounts and financial reports, payroll support, and TRB Books Lite (an AI-run monthly bookkeeping plan for small Nigerian businesses: upload bank statements, get reports)";
-// Approved price list (matches the website). Plans: Essentials up to 150 transactions/2 accounts; Growth up to 400/5; Premium up to 800/10; custom pricing only when BOTH limits are exceeded: over 800 transactions AND over 10 accounts.
-const PRICES = "APPROVED PRICES (quote only these; standard package prices and scopes are approved and fixed; the free Books Health Check is optional and WhatsApp is the preferred first contact). Nigeria: Books Lite ₦100,000 a year (2 accounts, 100 transactions a month); Essentials ₦150,000/month; Growth ₦300,000/month; Premium ₦550,000/month; Catch-up ₦100,000 per month of records; Clean-up from ₦250,000. United States: Essentials $299, Growth $499, Premium $849 a month; Catch-up $199 per month of records; Clean-up from $499. United Kingdom: Essentials £229, Growth £399, Premium £679 a month; Catch-up £159 per month; Clean-up from £399. Canada: Essentials C$399, Growth C$679, Premium C$1,149 a month; Catch-up C$269 per month; Clean-up from C$679. Australia: Essentials A$449, Growth A$749, Premium A$1,279 a month; Catch-up A$299 per month; Clean-up from A$749. Plan limits: Essentials up to 150 transactions and 2 bank or card accounts; Growth up to 400 and 5; Premium up to 800 and 10; custom pricing only when BOTH monthly transactions exceed 800 AND bank or card accounts exceed 10; if only one limit is exceeded, flag for owner review. Never invent discounts or other prices.";
+// Approved price list (matches the website). Plans: Essentials up to 150 transactions/2 accounts; Growth up to 400/5; Premium up to 800/10; over that is a custom quote.
+const PRICES = "APPROVED PRICES (quote only these; final price is confirmed in writing after a free Books Health Check). Nigeria: Books Lite ₦100,000 a year (2 accounts, 100 transactions a month); Essentials ₦150,000/month; Growth ₦300,000/month; Premium ₦550,000/month; Catch-up ₦100,000 per month of records; Clean-up from ₦250,000. United States: Essentials $299, Growth $499, Premium $849 a month; Catch-up $199 per month of records; Clean-up from $499. United Kingdom: Essentials £229, Growth £399, Premium £679 a month; Catch-up £159 per month; Clean-up from £399. Canada: Essentials C$399, Growth C$679, Premium C$1,149 a month; Catch-up C$269 per month; Clean-up from C$679. Australia: Essentials A$449, Growth A$749, Premium A$1,279 a month; Catch-up A$299 per month; Clean-up from A$749. Plan limits: Essentials up to 150 transactions and 2 bank or card accounts; Growth up to 400 and 5; Premium up to 800 and 10; above that is a custom quote. Never invent discounts or other prices.";
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-trb-cron", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 const today = () => new Date(Date.now() + 3600e3).toISOString().slice(0, 10); // Lagos date
@@ -34,16 +34,22 @@ async function claudeTool(system: string, text: string, tool: any, max_tokens = 
   if (!use) throw new Error("AI did not return a structured answer.");
   return use.input;
 }
-// Gemini (free tier) is used ONLY for Zara and Amara, which work from public information.
+async function aiTool(system: string, input: string, tool: any, max_tokens = 4000) {
+  if (!useGemini()) return await claudeTool(system, input, tool, max_tokens);
+  const prompt = "Return exactly one valid JSON object matching this schema. Do not use markdown fences or add commentary.\nSchema: " + JSON.stringify(tool.input_schema) + "\nInput data: " + input;
+  const raw = await gemini(system, prompt, false);
+  return lastJson(raw);
+}
+// Gemini free-tier usage is restricted to public prospect/content context and aggregated operational counts. Never send client bank statements or confidential financial records to a free-tier model.
 // Google's free tier terms say not to send sensitive, confidential or personal information, so no client data goes here.
 function geminiKey() { return Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY") || ""; }
 function useGemini() { return !Deno.env.get("ANTHROPIC_API_KEY") && !!geminiKey(); }
-async function gemini(system: string, prompt: string, search = false, images: { mime: string; data: string }[] = []) {
+async function gemini(system: string, prompt: string, search = false, images: { mime: string; data: string }[] = [], modelOverride?: string) {
   const key = geminiKey();
   if (!key) throw new NeedsKey("No AI key is set (ANTHROPIC_API_KEY or GEMINI_API_KEY).");
-  const pick = Deno.env.get("GEMINI_MODEL") || "gemini-flash-lite-latest";
+  const pick = modelOverride || Deno.env.get("GEMINI_MODEL") || "gemini-flash-lite-latest";
   // Free-tier models are often busy (503): try each model up to twice.
-  const models = [pick, "gemini-3.5-flash-lite", pick, "gemini-3.5-flash-lite"];
+  const models = modelOverride ? [modelOverride, modelOverride] : [pick, "gemini-3.5-flash-lite", pick, "gemini-3.5-flash-lite"];
   let last = "";
   for (const model of models) {
     const body: Record<string, unknown> = { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [...images.map((i) => ({ inline_data: { mime_type: i.mime, data: i.data } })), { text: prompt }] }], generationConfig: { temperature: 0.8, maxOutputTokens: 8192 } };
@@ -57,6 +63,19 @@ async function gemini(system: string, prompt: string, search = false, images: { 
   }
   throw new Error(last);
 }
+async function tavilySearch(query: string) {
+  const key = Deno.env.get("TAVILY_API_KEY");
+  if (!key) throw new NeedsKey("TAVILY_API_KEY is not configured. Add a free Tavily API key in Supabase Edge Function secrets; the free Researcher plan includes 1,000 search credits/month with no credit card.");
+  const res = await fetch("https://api.tavily.com/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ api_key: key, query, topic: "general", search_depth: "advanced", max_results: 5, include_answer: false, include_raw_content: false })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error("Tavily search failed " + res.status + ": " + (data?.detail || data?.message || "unknown"));
+  return Array.isArray(data.results) ? data.results : [];
+}
+
 function lastJson(text: string) {
   const blocks = [...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)].map((m) => m[1]);
   for (const b of blocks.reverse()) { try { return JSON.parse(b); } catch { /* next */ } }
@@ -79,11 +98,29 @@ async function resendKey(admin: SupabaseClient): Promise<string | null> {
 }
 type Attachment = { filename: string; content: string };
 const SENDER: Record<string, string> = { ada: "Ada", nani: "Nani", zara: "Zara", amara: "Amara", maya: "Maya", nora: "Nora" };
+const EMPLOYEE_ROLES: Record<string, string> = {
+  ada: "Client Operations Manager",
+  amara: "Social Media & Growth Manager",
+  maya: "Sales & Client Acquisition Manager",
+  nani: "AI Business Assistant & Performance Intelligence",
+  nora: "AI Bookkeeping Assistant",
+  zara: "Research & Business Development Manager"
+};
+function withEmployeeSignature(employeeId: string, body: string) {
+  const name = SENDER[employeeId] || "";
+  const role = EMPLOYEE_ROLES[employeeId] || "";
+  if (!name || !role) return body.trim();
+  let clean = body.trim()
+    .replace(/\n*\s*(?:Warm regards,?|Warmly Regards,?)\s*\n[\s\S]*$/i, "")
+    .replace(/\n*\s*(?:Nancy Bello|Nancy|Maya|Ada|Amara Okafor|Amara|Zara|Nani|Nora)\s*\n(?:[^\n]*\n)?The Resident Bookkeeper(?: \(TRB\))?\s*$/i, "");
+  return clean.trim() + "\n\nWarm regards,\n" + name + "\n" + role + "\nThe Resident Bookkeeper";
+}
 // All AI team emails go out from info@residentbookkeeper.com; replies come back to info@.
-async function sendEmail(admin: SupabaseClient, msg: { to: string; subject: string; text: string; html?: string; from?: string; reply_to?: string; cc?: string[]; attachments?: Attachment[] }) {
+async function sendEmail(admin: SupabaseClient, msg: { to: string; subject: string; text: string; html?: string; from?: string; reply_to?: string; cc?: string[]; attachments?: Attachment[]; employee_id?: string }) {
   const key = await resendKey(admin);
   if (!key) throw new Error("Email is not connected yet (no Resend key).");
-  const payload: Record<string, unknown> = { from: msg.from || "The Resident Bookkeeper <info@residentbookkeeper.com>", to: [msg.to], reply_to: msg.reply_to || "info@residentbookkeeper.com", subject: msg.subject, text: msg.text, html: msg.html };
+  const finalText = msg.employee_id ? withEmployeeSignature(msg.employee_id, msg.text) : msg.text;
+  const payload: Record<string, unknown> = { from: msg.from || "The Resident Bookkeeper <info@residentbookkeeper.com>", to: [msg.to], reply_to: msg.reply_to || "info@residentbookkeeper.com", subject: msg.subject, text: finalText, html: msg.html };
   if (msg.cc?.length) payload.cc = msg.cc;
   if (msg.attachments?.length) payload.attachments = msg.attachments;
   const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -106,18 +143,24 @@ TRB sells: ${SERVICES}. Markets: ${markets.join(", ")}. Target: ${target} new cl
 Today is ${today()}. Use web search. Be factual: every item must come from a page you actually found, with its URL. Never invent businesses, people, emails or phone numbers.`;
   const ask = `${focus ? `Instruction from Nancy: ${focus}\n\n` : ""}Do today's research and reply with ONE fenced json block:
 {"opportunities":[{"market":"","headline":"","why_it_matters":"","angle_for_trb":"","source_url":""}],
- "prospects":[{"name":"","country":"","business_type":"","why_they_need_us":"","website":"","public_email":"","public_phone":"","source_url":""}],
+ "prospects":[{"name":"","country":"","business_type":"","why_they_need_us":"","website":"","public_email":"","public_phone":"","source_url":"","active_request":false}],
  "content_ideas":["..."]}
-Rules: 3 opportunities (deadlines, rule changes, programmes, events that create bookkeeping demand in our markets this month).
+Rules: 3 opportunities (deadlines, rule changes, programmes, events that create bookkeeping demand in our markets this month). Prioritise active public recommendation requests such as "recommend a bookkeeper", "need payroll", "looking for an accountant" and similar. Set active_request=true ONLY when the supplied source is an actual public request, not a general article or business directory.
 Up to 5 prospects: real small or growing BUSINESSES (not individuals) that plausibly need bookkeeping now (e.g. new SMEs, grant/competition participants, businesses hiring an accountant, MTD-affected UK sole traders' firms, Nigerian SMEs). Give public_email/public_phone ONLY if published on the business's own site or listing, else "". Skip these existing leads: ${known.slice(0, 120).join("; ") || "none"}.
 3 content ideas for Amara's social posts based on the opportunities.`;
   let text: string;
   if (useGemini()) {
-    try { text = await gemini(system.replace("Use web search.", "Use Google Search."), ask, true); }
-    catch (e) {
-      // Without live search Zara would have to guess businesses and contact details, so she waits instead.
-      throw new NeedsKey(`Zara needs live web search. Google's free tier does not include it on this key (${(e as Error).message.slice(0, 80)}). She will run once the Anthropic key is added.`);
-    }
+    const queries = [
+      "small business owner looking for a bookkeeper accountant payroll recommendation Nigeria 2026",
+      "small business looking for bookkeeping accountant payroll support United Kingdom United States Canada Australia 2026",
+      "site:reddit.com small business need a bookkeeper accountant payroll 2026",
+      "public Facebook LinkedIn business owner request recommend bookkeeper accountant payroll 2026",
+      "small business hiring bookkeeper accountant outsourced finance support November 2026"
+    ];
+    const batches = await Promise.all(queries.map((q) => tavilySearch(q)));
+    const evidence = batches.flat().slice(0, 25).map((r: any) => ({ title: r.title, url: r.url, content: String(r.content || "").slice(0, 1200), published_date: r.published_date || null }));
+    const groundedAsk = ask + "\n\nLIVE SEARCH EVIDENCE (use only these results; cite exact URLs; distinguish active public recommendation requests from general articles; do not invent posting dates or intent):\n" + JSON.stringify(evidence);
+    text = await gemini(system.replace("Use web search.", "Use only the supplied live search evidence; do not invent sources."), groundedAsk, false);
   }
   else {
     const data = await claude({ max_tokens: 6000, system, messages: [{ role: "user", content: ask }], tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }] });
@@ -129,7 +172,7 @@ Up to 5 prospects: real small or growing BUSINESSES (not individuals) that plaus
     const name = String(p.name || "").trim();
     if (!name || known.includes(name.toLowerCase()) || !(p.website || p.source_url)) continue;
     const { data: lead, error } = await admin.from("leads").insert({
-      owner_id: owner, name, business_type: p.business_type || null, country: p.country || null, source: "Zara research", stage: "Prospect",
+      owner_id: owner, name, business_type: p.business_type || null, country: p.country || null, source: p.active_request ? "Social Recommendation / Active Request" : "Zara research", stage: "Prospect",
       email: p.public_email || null, phone: p.public_phone || null,
       notes: `Why: ${p.why_they_need_us || ""}\nWebsite: ${p.website || ""}\nFound at: ${p.source_url || ""}\nAdded by Zara on ${today()}.`,
     }).select("id,name").single();
@@ -147,15 +190,49 @@ const FORM = "https://forms.gle/vV5eb9sWSehEhiDi7";
 const SOCIAL_RULES = `BRAND: The Resident Bookkeeper (TRB). Tagline: "Accurate Records. Smarter Decisions. Stronger Business." Positioning: a company that understands the money and record-keeping struggles business owners face and solves them strategically.
 TONE AND LANGUAGE: warm, confident, plain English a busy small-business owner understands. No jargon without explaining it. Short lines, white space, a check-mark list (✔) or numbered steps (1️⃣ 2️⃣) where useful, 1 to 3 emojis. For Nigerian posts use local examples (naira ₦, POS, transfers, WhatsApp orders, market traders, boutiques, restaurants, construction). For international posts use local currency and examples (no naira, no POS). Never invent statistics, clients or testimonials; label example people "(an illustrative example)". General education only, no specific tax or legal advice.
 EVERY POST must answer three things: what problem, feeling or need it addresses; how TRB helps (where it fits naturally, show the tax benefit too, e.g. "tax-ready records", "claim every allowable cost"); and what the audience should do next.
-CALLS TO ACTION: vary them. Instagram cannot take links in captions: use "Send BOOKS by DM", "tap the link in our bio", "Call or WhatsApp 0802 600 0078", "Save this", "Tag a business owner", "Comment below". Facebook can: use WhatsApp +234 802 600 0078 (https://wa.me/2348026000078) as the primary CTA, with the Free Books Health Check as an optional alternative; Books Lite sign-up https://residentbookkeeper.com/bookslite-start?utm_source=facebook&utm_medium=social&utm_campaign=bookslite, the website residentbookkeeper.com, or the phone number. Do not put "Free Books Health Check" in every post.
+CALLS TO ACTION: vary them. Instagram cannot take links in captions: use "Send BOOKS by DM", "tap the link in our bio", "Call or WhatsApp +234 802 600 0078", "Save this", "Tag a business owner", "Comment below". Facebook can: use the Free Books Health Check form ${FORM}, Books Lite sign-up https://residentbookkeeper.com/bookslite-start?utm_source=facebook&utm_medium=social&utm_campaign=bookslite, the website residentbookkeeper.com, or the phone number. Do not put "Free Books Health Check" in every post.
 HASHTAGS: 5 to 7. Always #TheResidentBookkeeper and #Bookkeeping, then a mix such as #SmallBusiness #BusinessOwners #NigerianBusiness #SmallBusinessNigeria #CashFlow #TaxReady #BusinessHumour #BookkeepingQuiz (international posts: #SmallBusinessUK, #SmallBusinessUSA, #SmallBusinessCanada, #SmallBusinessAustralia as relevant).
 CONTENT MIX over every 30 posts: 9 educational or storytelling, 4 humour or relatable, 4 interactive (polls, quizzes, true or false, questions), 3 inspirational or emotional, 3 behind the scenes, 3 reels or short tutorials, 2 brand awareness, 2 promotional or conversion. Rotate so followers never see the same kind of post two days running.
 INTERACTIVE POSTS (quiz, poll, true or false, question) MUST come with comment_answer: the exact reply TRB posts in the comments, with the answer and a one-line explanation, plus when to post it (for example "Post at 9pm the same day"). For opinion polls and questions, write a warm reply that thanks people and gives a useful tip on the most likely answer.
 PROMOTIONAL POSTS: a price or offer post every two days at 4pm, using only the approved prices: ${PRICES}
 VISUALS: bright cream backgrounds only (no dark backgrounds), TRB colours cream, black, red and a touch of gold. Brand name and tagline only, no open-book icon, no corner badges. When people are shown, alternate men and women of different countries and ethnicities. For posts without a Manus visual, describe a simple text card that looks exactly like the Manus visuals without the picture: headline, 2 to 4 short lines, and a call-to-action button whose text varies (Get Started, Vote Now, Call Us Now, Learn More, Comment Below, Save This).
-MARKETS: Nigeria first. From 19 November 2026 roughly one post in three speaks to the US, UK, Canada or Australia.`;
+CONTACT: TRB has ONE phone and WhatsApp number for every market, including the US, UK, Canada and Australia: +234 802 600 0078 (WhatsApp link https://wa.me/2348026000078). Never write any other phone number and never make up a local number.
+MARKETS: Nigeria first. Exactly ONE post a week speaks to the US, UK, Canada or Australia (the system tells you when); every other post is for Nigeria.`;
+// ---------- Price cards: built from the approved price list, never by the AI ----------
+const PLAN_PRICES: Record<string, Record<string, string>> = {
+  Nigeria: { Essentials: "₦150,000", Growth: "₦300,000", Premium: "₦550,000" },
+  "United States": { Essentials: "$299", Growth: "$499", Premium: "$849" },
+  "United Kingdom": { Essentials: "£229", Growth: "£399", Premium: "£679" },
+  Canada: { Essentials: "C$399", Growth: "C$679", Premium: "C$1,149" },
+  Australia: { Essentials: "A$449", Growth: "A$749", Premium: "A$1,279" },
+};
+const PLAN_INFO: Record<string, { suits: string; lines: string[] }> = {
+  Essentials: { suits: "For small businesses with steady, simple monthly activity", lines: ["Up to 150 transactions a month", "Up to 2 bank or card accounts", "Monthly reconciliation and categorisation", "Profit and loss, balance sheet and tax schedule"] },
+  Growth: { suits: "For growing businesses with more sales, bills and staff", lines: ["Up to 400 transactions a month", "Up to 5 bank or card accounts", "Invoices and bills managed", "Payroll records for up to 10 staff", "Monthly review call"] },
+  Premium: { suits: "For established businesses with high monthly volume", lines: ["Up to 800 transactions a month", "Up to 10 bank or card accounts", "Stock and cost of sales", "Payroll records for up to 30 staff", "Year-end accounts pack"] },
+  Custom: { suits: "For larger and multi-company businesses", lines: ["Over 800 transactions a month", "More than 10 bank or card accounts", "Group and multi-company reconciliations", "A plan built around how you work"] },
+};
+// Nancy (22 Nov 2026): daily price cards rotate Growth, Premium and Custom.
+const PROMO_ROTATION = ["Growth", "Premium", "Custom"];
+const INTL = ["United Kingdom", "United States", "Canada", "Australia"];
+function priceCard(plan: string, market: string, button = "Get Started") {
+  const custom = plan === "Custom";
+  return { style: "price", market, kicker: "Monthly bookkeeping", plan: `${plan} Plan`, suits: PLAN_INFO[plan].suits,
+    price: custom ? "Custom quote" : PLAN_PRICES[market][plan], per: custom ? "" : "/month", lines: PLAN_INFO[plan].lines,
+    note: custom ? "Priced in writing after a free Books Health Check." : "Final price confirmed in writing after a free Books Health Check.", button: custom ? "Get a Quote" : button };
+}
+// TRB has ONE number. Any other phone number or WhatsApp link an AI writes is replaced with it.
+function fixPhones(text: string) {
+  return String(text ?? "")
+    .replace(/wa\.me\/\+?(\d{7,15})/g, (m, d) => (d === "2348026000078" ? m : "wa.me/2348026000078"))
+    .replace(/\+?\(?\d[\d\s().-]{7,}\d/g, (m) => {
+      const d = m.replace(/\D/g, "");
+      if (d.length < 9 || /^\d{4}-\d{2}-\d{2}/.test(m.trim())) return m;
+      return d.endsWith("8026000078") ? m : "+234 802 600 0078";
+    });
+}
 const MIX: Record<string, number> = { educational: 9, humour: 4, interactive: 4, inspirational: 3, behind_the_scenes: 3, reel_tutorial: 3, brand_awareness: 2, promotional: 2 };
-const POST_SCHEMA = `{"posts":[{"title":"internal name, max 8 words","category":"one of: ${Object.keys(MIX).join(", ")}","format":"single_image | carousel | reel | story | poll | quiz","goal":"views | likes_and_saves | follows | enquiries","market":"Nigeria | International","hook":"first line that stops the scroll, max 14 words","caption_instagram":"full Instagram caption including the hook as the first line, Instagram-style call to action, then the hashtags","caption_facebook":"the same post adapted for Facebook (links allowed), then the hashtags","comment_answer":"required for interactive posts, else empty string","problem":"the problem, feeling or need","how_trb_helps":"one line","next_step":"what the audience should do","visual_brief":"for a Manus visual: one line on how the caption uses it; otherwise the text card: headline / lines / button text","slides_or_script":["carousel slide texts or reel shot list, if any"]}]}`;
+const POST_SCHEMA = `{"posts":[{"title":"internal name, max 8 words","category":"one of: ${Object.keys(MIX).join(", ")}","format":"single_image | carousel | reel | story | poll | quiz","goal":"views | likes_and_saves | follows | enquiries","market":"Nigeria | International","hook":"first line that stops the scroll, max 14 words","caption_instagram":"full Instagram caption including the hook as the first line, Instagram-style call to action, then the hashtags","caption_facebook":"the same post adapted for Facebook (links allowed), then the hashtags","comment_answer":"required for interactive posts, else empty string","problem":"the problem, feeling or need","how_trb_helps":"one line","next_step":"what the audience should do","visual_brief":"for a Manus visual: one line on how the caption uses it; otherwise one line describing the card","card":{"kicker":"2 or 3 word label in capitals (QUICK TIP, QUIZ, POLL, DID YOU KNOW, BEHIND THE SCENES) or empty","headline":"the words printed on the card, max 12 words, never a design description","lines":["2 to 4 short lines printed on the card, max 9 words each"],"button":"button text, max 4 words","style":"checklist | steps | options"},"slides_or_script":["carousel slide texts or reel shot list, if any"]}]}`;
 
 async function aiJson(system: string, prompt: string, images: { mime: string; data: string }[] = []) {
   if (useGemini()) {
@@ -184,7 +261,7 @@ async function amara(admin: SupabaseClient, owner: string, focus = "") {
   }
   if (!day) { const s = "The content plan is full for the next three weeks."; await log(admin, owner, "amara", "daily_post", "skipped", s); return s; }
   const lastPromo = H.find((h: any) => h.category === "promotional");
-  const promoDue = !lastPromo || Date.parse(day + "T16:00:00+01:00") - Date.parse(lastPromo.planned_for || lastPromo.created_at) >= 2 * 864e5 - 3600e3;
+  const promoDue = true; // Nancy rule: a price card every posting day.
   const n = Math.max(1, 3 - taken.length);
   let free = ["08:00", "13:00", "19:00"].filter((t) => !taken.includes(t));
   if (promoDue && !taken.includes("16:00")) free = [...free.slice(0, n - 1), "16:00"];
@@ -205,15 +282,31 @@ async function amara(admin: SupabaseClient, owner: string, focus = "") {
       images.push({ mime: dl.data.type || "image/png", data: btoa(bin) });
     }
   }
-  const plan = slots.map((t, i) => ({ time_lagos: t, category: t === "16:00" ? "promotional" : wanted[i] || need[0][0], uses_manus_visual: !!images.length && i === 0 }));
-  const international = day >= "2026-11-19";
+  const plan = slots.map((t, i) => ({ time_lagos: t, category: t === "16:00" ? "promotional" : wanted[i] || need[0][0], format: t === "08:00" ? "single_image" : t === "13:00" ? "carousel" : "single_image", visual_role: t === "08:00" ? "photograph" : t === "13:00" ? "educational_carousel" : "price_card", uses_manus_visual: !!images.length && t === "08:00" }));
+  // One international post a week; price cards rotate Growth -> Premium -> Custom (Nigerian prices).
+  const { data: apHist } = await admin.from("trb_approvals").select("status,payload,created_at").eq("kind", "social_post").eq("employee_id", "amara").neq("status", "rejected").order("created_at", { ascending: false }).limit(60);
+  const AH = apHist || [];
+  const dayMs = Date.parse(day + "T12:00:00+01:00");
+  const intlRecent = AH.filter((a: any) => /international/i.test(a.payload?.market || "") && Math.abs(dayMs - Date.parse(a.payload?.planned_for || a.created_at)) < 6.5 * 864e5);
+  const lastIntl = AH.find((a: any) => a.payload?.country);
+  const intlCountry = INTL[(INTL.indexOf(lastIntl?.payload?.country) + 1) % INTL.length];
+  const international = !intlRecent.length && plan.some((s: any) => s.time_lagos === "13:00");
+  const lastPlan = AH.find((a: any) => a.payload?.price_plan)?.payload?.price_plan;
+  const promoPlan = PROMO_ROTATION[(PROMO_ROTATION.indexOf(lastPlan) + 1) % PROMO_ROTATION.length];
+  for (const s of plan as any[]) { s.market = international && s.time_lagos === "13:00" ? intlCountry : "Nigeria"; if (s.time_lagos === "16:00") s.price_plan = promoPlan; }
   // Extra rules Nancy can change without a code update (trb_growth_config.amara_rules).
   const { data: cfg } = await admin.from("trb_growth_config").select("amara_rules").eq("id", true).maybeSingle();
   const system = `You are Amara, Social Media & Growth Manager at The Resident Bookkeeper (Instagram @theresidentbookkeeper and Facebook). You write the daily posts Nancy approves and schedules.\n${SOCIAL_RULES}${cfg?.amara_rules ? "\nMORE RULES FROM NANCY:\n" + cfg.amara_rules : ""}`;
   const prompt = `Write the posts for ${day} (Lagos time). Today is ${ymd(lagosNow)}.
 Slots and categories to fill: ${JSON.stringify(plan)}.
-${images.length ? `The attached image is a Manus visual Nancy made for the first slot${vis?.note ? ` (her note: ${vis.note})` : ""}. Read the text and picture in it carefully and write that post around exactly what the visual says. Do not describe a new design for it; you may change its category to fit the visual.` : "No Manus visual is waiting, so every post needs a text-card visual_brief."}
-${international ? "International phase is on: make one of these posts speak to the US, UK, Canada or Australia." : "Nigerian market only for now."}
+DAILY PUBLISHING FORMAT (follow exactly): 08:00 = one single-image post led by a real professional business photograph; 13:00 = one educational carousel with 3–5 useful slides; 16:00 = one promotional single-image PRICE CARD every day.
+The price card must use only the current approved price list and show the package, inclusions, who it suits, and the price. Keep tax filing separate/additional if mentioned.
+Keep one consistent TRB frame: generous warm cream/ivory background, deep charcoal text, strategic deep-red emphasis/CTA, approved TRB logo in the same position, serif headline + clean sans-serif body, generous whitespace, and no deep forest green or gold.
+The 08:00 visual_brief must specify the photo subject/composition; the 13:00 visual_brief must specify each carousel slide; the 16:00 visual_brief must specify the price-card layout and exact approved price. If no actual photo asset is attached, state that a photo asset is still required; do not pretend a visual file has been created.
+${images.length ? "The attached image is the approved photo/visual Nancy supplied for the 08:00 slot. Use it as the exact visual reference; do not invent a different frame." : "No uploaded photo is waiting. Write the photo direction and card copy as visual briefs only; do not claim to have generated image files."}
+${international ? `This week's ONE international post is the 13:00 post: write it for small businesses in ${intlCountry} (local currency and examples, no naira, no POS). Every other post is for Nigeria.` : "All posts today are for Nigeria (this week's international post is already planned)."}
+The 16:00 price post is for the ${promoPlan} plan in Nigeria: ${promoPlan === "Custom" ? "a custom quote for businesses with over 800 transactions a month AND more than 10 bank or card accounts; no fixed price" : `${PLAN_PRICES.Nigeria[promoPlan]} a month`}. Include: ${PLAN_INFO[promoPlan].lines.join("; ")}. Who it suits: ${PLAN_INFO[promoPlan].suits}. Say the final price is confirmed in writing after a free Books Health Check. The price card picture is made by the system, so leave its "card" empty.
+The ONLY phone and WhatsApp number is +234 802 600 0078, in every market.
 ${focus ? `Instruction from Nancy: ${focus}\n` : ""}DO NOT REPEAT these recent and planned posts (hooks and topics), and do not reuse their angle:
 ${H.slice(0, 80).map((h: any) => `- [${h.category}] ${h.hook}${h.topic ? " / " + h.topic : ""}`).join("\n")}
 Reply with ONE fenced json block exactly in this shape, one entry per slot in the same order: ${POST_SCHEMA}`;
@@ -224,6 +317,12 @@ Reply with ONE fenced json block exactly in this shape, one entry per slot in th
   for (let i = 0; i < posts.length; i++) {
     const p = posts[i], slot = plan[i];
     for (const k of ["hook", "caption_instagram", "caption_facebook"]) if (!p[k]) throw new Error(`Post draft is missing "${k}".`);
+    p.format = slot.format; // enforce the daily photograph / carousel / price-card sequence
+    for (const k of ["caption_instagram", "caption_facebook", "comment_answer", "hook", "visual_brief"]) if (p[k]) p[k] = fixPhones(p[k]);
+    p.market = (slot as any).market === "Nigeria" ? "Nigeria" : "International";
+    if ((slot as any).market !== "Nigeria") p.country = (slot as any).market;
+    if ((slot as any).price_plan) { p.price_plan = (slot as any).price_plan; p.card = priceCard(p.price_plan, "Nigeria"); }
+    else if (p.card && typeof p.card === "object") p.card = JSON.parse(fixPhones(JSON.stringify(p.card)));
     // Hashtags always on their own line at the end.
     const tidy = (t: string) => String(t).replace(/\s*((?:#[\p{L}\p{N}_]+[ \t]*)+)\s*$/u, "\n\n$1").trim();
     p.caption_instagram = tidy(p.caption_instagram); p.caption_facebook = tidy(p.caption_facebook);
@@ -243,9 +342,9 @@ Reply with ONE fenced json block exactly in this shape, one entry per slot in th
 
 // ---------- Maya: first messages for new leads ----------
 async function maya(admin: SupabaseClient, owner: string, focus = "") {
-  const since = new Date(Date.now() - 14 * 864e5).toISOString();
+  const since = new Date(Date.now() - 30 * 864e5).toISOString();
   const [{ data: leads }, { data: pend }, { data: fu }] = await Promise.all([
-    admin.from("leads").select("*").eq("owner_id", owner).in("stage", ["New", "Prospect"]).gte("created_at", since).order("created_at", { ascending: false }).limit(30),
+    admin.from("leads").select("*").eq("owner_id", owner).in("stage", ["New", "Prospect", "Research — approval required"]).gte("created_at", since).order("created_at", { ascending: false }).limit(30),
     admin.from("trb_approvals").select("payload").eq("kind", "outreach_message").in("status", ["pending", "approved", "done"]).limit(500),
     admin.from("sales_followups").select("lead_id,message,status").eq("owner_id", owner).limit(1000),
   ]);
@@ -255,13 +354,14 @@ async function maya(admin: SupabaseClient, owner: string, focus = "") {
   if (!todo.length) { const s = "No new leads waiting for a first message."; await log(admin, owner, "maya", "first_messages", "skipped", s); return s; }
   const tool = { name: "message", description: "First outreach message for one lead.", input_schema: { type: "object", required: ["channel", "message"], properties: { channel: { type: "string", enum: ["whatsapp", "email", "instagram_dm", "linkedin"] }, subject: { type: "string" }, message: { type: "string" }, reason: { type: "string" } } } };
   const system = `You are Maya, Sales & Client Acquisition Manager at The Resident Bookkeeper (${SITE}). TRB sells: ${SERVICES}.
-Write a short, warm, specific first message from Nancy Bello, founder of The Resident Bookkeeper. Mention something specific about the lead. One clear next step (free 15-minute bookkeeping health check, or reply to chat). No pressure, no false claims, no prices unless asked; if price comes up, use only the approved prices below.\n${PRICES}
-Website enquiries ("New" leads) asked us for help: reply to their enquiry. Zara's "Prospect" leads did not contact us: be respectful, explain why you are reaching out, and make it easy to say no.
+Write a short, warm, specific first message as Maya, Sales & Client Acquisition Manager at The Resident Bookkeeper. Never write as Nancy or claim to be the founder. Mention something specific about the lead. End with the mandatory Maya signature: Warm regards, Maya, Sales & Client Acquisition Manager, The Resident Bookkeeper (each on its own line). One clear next step (free 15-minute bookkeeping health check, or reply to chat). No pressure, no false claims, no prices unless asked; if price comes up, use only the approved prices below.\n${PRICES}
+Do not infer enquiry intent from the stage alone. Use source and notes: only treat an item as inbound if it clearly records a contact-form, pricing, Books Lite sign-up, referral or direct enquiry. Zara research and "Research — approval required" records are cold prospects; draft respectfully but do not claim they requested contact or send them automatically. Never contact bounced, suppressed, opt-out or previously contacted leads without fresh lawful basis.
 Pick the channel: WhatsApp if a phone exists, else email if an email exists, else Instagram DM or LinkedIn.${focus ? `\nInstruction from Nancy: ${focus}` : ""}`;
   const done: any[] = [];
   for (const l of todo) {
     try {
-      const m = await claudeTool(system, JSON.stringify({ name: l.name, business_type: l.business_type, country: l.country, source: l.source, stage: l.stage, notes: l.notes, has_phone: !!l.phone, has_email: !!l.email }), tool, 900);
+      const notes = String(l.notes || "").replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email redacted]").replace(/\+?\d[\d\s().-]{7,}\d/g, "[phone redacted]");
+      const m = await aiTool(system, JSON.stringify({ name: l.name, business_type: l.business_type, country: l.country, source: l.source, stage: l.stage, notes, has_phone: !!l.phone, has_email: !!l.email }), tool, 900);
       const { data: ap } = await admin.from("trb_approvals").insert({ owner_id: owner, employee_id: "maya", kind: "outreach_message", title: `${m.channel} to ${l.name}`, body: m.message, payload: { lead_id: l.id, lead_name: l.name, channel: m.channel, subject: m.subject || null, phone: l.phone, email: l.email, reason: m.reason || null } }).select("id").single();
       done.push({ lead: l.name, approval_id: ap?.id });
     } catch (e) { if (e instanceof NeedsKey) throw e; done.push({ lead: l.name, error: (e as Error).message }); }
@@ -378,13 +478,13 @@ async function nani(admin: SupabaseClient, owner: string, prof: any) {
   let headline = `${newClients.length} of ${target} new clients this month · ${leads.length} new lead(s) in the last 24 hours · ${needs.length ? needs.length + " thing(s) need you" : "nothing needs you"}.`;
   let advice = "";
   try {
-    const a = await claudeTool(`You are Nani, executive assistant to Nancy, founder of The Resident Bookkeeper. Write her morning brief priorities: honest, short, specific, no fluff, no invented facts.`, JSON.stringify(data), { name: "brief", description: "Morning priorities", input_schema: { type: "object", required: ["top3"], properties: { top3: { type: "array", items: { type: "string" }, description: "The three most valuable things Nancy should do today, each one line" } } } }, 600);
+    const a = await aiTool(`You are Nani, executive assistant to Nancy, founder of The Resident Bookkeeper. Write her morning brief priorities: honest, short, specific, no fluff, no invented facts. The input is aggregated operational counts and contains no client bank records.`, JSON.stringify(data), { name: "brief", description: "Morning priorities", input_schema: { type: "object", required: ["top3"], properties: { top3: { type: "array", items: { type: "string" }, description: "The three most valuable things Nancy should do today, each one line" } } } }, 600);
     advice = (a.top3 || []).map((t: string, i: number) => `${i + 1}. ${t}`).join("\n");
   } catch (e) { if (!(e instanceof NeedsKey)) advice = ""; }
-  const text = [`Good morning, Nancy. Here is your brief for ${d}.`, "", headline, "", "NEEDS YOU", ...(needs.length ? needs.map((n) => "• " + n) : ["• Nothing urgent."]), "", "DONE IN THE LAST 24 HOURS (with proof in the portal)", ...(doneLines.length ? doneLines.map((n) => "• " + n) : ["• No AI work recorded."]), ...(advice ? ["", "TODAY'S TOP 3", advice] : []), "", `Open the portal: ${SITE}/platform`].join("\n");
+  const text = [`Good morning, Nancy. Here is your brief for ${d}.`, "", headline, "", "NEEDS YOU", ...(needs.length ? needs.map((n) => "• " + n) : ["• Nothing urgent."]), "", "DONE IN THE LAST 24 HOURS (with proof in the portal)", ...(doneLines.length ? doneLines.map((n) => "• " + n) : ["• No AI work recorded."]), ...(advice ? ["", "TODAY'S TOP 3", advice] : []), "", `Open the portal: ${SITE}/platform`, "", "Warm regards,", "Nani", EMPLOYEE_ROLES.nani, "The Resident Bookkeeper"].join("\n");
   const esc = (s: string) => s.replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m] as string));
   const li = (a: string[]) => a.map((x) => `<li style="margin:4px 0">${esc(x)}</li>`).join("");
-  const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#14110E"><div style="border-top:6px solid #B8112B;padding:20px 0 6px"><b style="color:#A67C1E;letter-spacing:.12em;font-size:12px">THE RESIDENT BOOKKEEPER · NANI</b></div><h2 style="margin:6px 0">Good morning, Nancy</h2><p style="background:#F5EBD6;padding:12px 14px;border-radius:8px">${esc(headline)}</p><h3 style="color:#B8112B;font-size:14px;letter-spacing:.08em">NEEDS YOU</h3><ul>${needs.length ? li(needs) : "<li>Nothing urgent.</li>"}</ul><h3 style="font-size:14px;letter-spacing:.08em">DONE IN THE LAST 24 HOURS</h3><ul>${doneLines.length ? li(doneLines) : "<li>No AI work recorded.</li>"}</ul>${advice ? `<h3 style="font-size:14px;letter-spacing:.08em">TODAY'S TOP 3</h3><p style="white-space:pre-line">${esc(advice)}</p>` : ""}<p><a href="${SITE}/platform" style="display:inline-block;background:#B8112B;color:#fff;padding:11px 16px;border-radius:8px;text-decoration:none;font-weight:bold">Open the portal</a></p></div>`;
+  const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#14110E"><div style="border-top:6px solid #B8112B;padding:20px 0 6px"><b style="color:#A67C1E;letter-spacing:.12em;font-size:12px">THE RESIDENT BOOKKEEPER · NANI</b></div><h2 style="margin:6px 0">Good morning, Nancy</h2><p style="background:#F5EBD6;padding:12px 14px;border-radius:8px">${esc(headline)}</p><h3 style="color:#B8112B;font-size:14px;letter-spacing:.08em">NEEDS YOU</h3><ul>${needs.length ? li(needs) : "<li>Nothing urgent.</li>"}</ul><h3 style="font-size:14px;letter-spacing:.08em">DONE IN THE LAST 24 HOURS</h3><ul>${doneLines.length ? li(doneLines) : "<li>No AI work recorded.</li>"}</ul>${advice ? `<h3 style="font-size:14px;letter-spacing:.08em">TODAY'S TOP 3</h3><p style="white-space:pre-line">${esc(advice)}</p>` : ""}<p><a href="${SITE}/platform" style="display:inline-block;background:#B8112B;color:#fff;padding:11px 16px;border-radius:8px;text-decoration:none;font-weight:bold">Open the portal</a></p><p>Warm regards,<br>Nani<br>${EMPLOYEE_ROLES.nani}<br>The Resident Bookkeeper</p></div>`;
   const { data: dig } = await admin.from("trb_daily_digest").upsert({ owner_id: owner, digest_date: d, headline, body_text: text, body_html: html, data }, { onConflict: "owner_id,digest_date" }).select("id").single();
   // Email
   let note = "Email not sent: no email service connected yet (RESEND_API_KEY).";
@@ -402,18 +502,45 @@ async function nani(admin: SupabaseClient, owner: string, prof: any) {
 
 // ---------- Instructions typed in the portal ----------
 async function instructions(admin: SupabaseClient, owner: string, prof: any) {
-  const { data: list } = await admin.from("trb_ai_instructions").select("*").eq("status", "pending").order("created_at").limit(5);
+  const { data: list } = await admin.from("trb_ai_instructions").select("*").eq("owner_id", owner).eq("status", "pending").order("created_at").limit(5);
   const out: string[] = [];
   for (const ins of list || []) {
     await admin.from("trb_ai_instructions").update({ status: "working" }).eq("id", ins.id);
     try {
       let r = "";
-      if (ins.employee_id === "zara") r = await zara(admin, owner, ins.instruction);
-      else if (ins.employee_id === "amara") r = await amara(admin, owner, ins.instruction);
-      else if (ins.employee_id === "maya") r = await maya(admin, owner, ins.instruction);
-      else if (ins.employee_id === "ada") r = await ada(admin, owner, ins.instruction);
-      else if (ins.employee_id === "nani") r = await nani(admin, owner, prof);
-      else r = "This employee takes instructions elsewhere: for Nora, open the Books Lite client and use Instruct Nora.";
+      const employee = String(ins.employee_id || "").toLowerCase();
+      if (employee === "zara") r = await zara(admin, owner, ins.instruction);
+      else if (employee === "amara") r = await amara(admin, owner, ins.instruction);
+      else if (employee === "maya") r = await maya(admin, owner, ins.instruction);
+      else if (employee === "ada") r = await ada(admin, owner, ins.instruction);
+      else if (employee === "nani") {
+        const { data: internal } = await admin.from("trb_internal_secrets").select("value").eq("name", "workforce_cron_token").maybeSingle();
+        const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SECRET_KEY");
+        const url = Deno.env.get("SUPABASE_URL");
+        if (!internal?.value || !service || !url) throw new NeedsKey("Nani's secure Gmail runner is not configured.");
+        const response = await fetch(url + "/functions/v1/nani-gmail-sync", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + service, "x-trb-cron": internal.value }, body: JSON.stringify({ action: "sync_inbox" }) });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error("Nani could not synchronise the inbox: " + (result?.error || response.status));
+        r = "Nani checked the TRB inbox. " + result.checked + " recent messages checked; " + result.added + " new messages added to the TRB inbox. Read-only mode remains active.";
+      }
+      else if (employee === "nora") {
+        const { data: businesses } = await admin.from("books_lite_businesses").select("id,business_name").eq("owner_id", owner).order("created_at", { ascending: false }).limit(1);
+        const business = businesses?.[0];
+        if (!business) throw new Error("Nora has no BooksLite business assigned for this instruction.");
+        const { data: task, error: taskError } = await admin.from("books_lite_instructions").insert({ business_id: business.id, created_by: owner, instruction: ins.instruction, status: "pending" }).select("id").single();
+        if (taskError || !task) throw new Error("Could not create Nora task in BooksLite: " + (taskError?.message || "unknown error"));
+        const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SECRET_KEY");
+        const url = Deno.env.get("SUPABASE_URL");
+        if (!service || !url) throw new NeedsKey("BooksLite Nora runner is missing its Supabase service connection.");
+        const response = await fetch(url + "/functions/v1/bookslite-nora", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + service }, body: JSON.stringify({ action: "instruct", instruction_id: task.id }) });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error("BooksLite Nora could not start the task: " + (result?.error || response.status));
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        const { data: finished } = await admin.from("books_lite_instructions").select("status,response").eq("id", task.id).maybeSingle();
+        if (finished?.status === "done") r = "Nora completed the BooksLite task: " + (finished.response || "Completed.");
+        else if (finished?.status === "failed") throw new Error("Nora's BooksLite task failed: " + (finished.response || "No response recorded."));
+        else throw new Error("Nora's BooksLite task was queued but is still running. Task ID: " + task.id);
+      } else throw new Error("Unknown AI employee: " + ins.employee_id);
       await admin.from("trb_ai_instructions").update({ status: "done", response: r, completed_at: new Date().toISOString() }).eq("id", ins.id);
       out.push(r);
     } catch (e) {
@@ -423,6 +550,47 @@ async function instructions(admin: SupabaseClient, owner: string, prof: any) {
   return out.join(" ") || "No pending instructions.";
 }
 
+async function autoApprovals(admin: SupabaseClient, owner: string) {
+  const cutoff = new Date(Date.now() - 60 * 60e3).toISOString();
+  const stale = new Date(Date.now() - 14 * 864e5).toISOString();
+  const { data: pending, error: queryError } = await admin.from("trb_approvals").select("*").eq("owner_id", owner).eq("status", "pending").lte("created_at", cutoff).order("created_at").limit(100);
+  const eligible = (pending || []).filter((a: any) => String(a.created_at || "").slice(0, 10) >= stale.slice(0, 10));
+  const sent: string[] = [];
+  const blocked: string[] = [];
+  const candidates = eligible.filter((a: any) => { const p = a.payload || {}; return a.kind === "other" && ["payment_reminder", "onboarding_start"].includes(String(p.type || "")) && p.channel === "email" && !!p.email; });
+  for (const ap of candidates) {
+    const p = ap.payload || {};
+    if (/practice|training|test|demo/i.test(String(p.client_name || ap.title || ""))) { blocked.push(ap.title + ": training/test record excluded"); continue; }
+    const { data: client } = await admin.from("clients").select("id,name,email,status").eq("id", p.client_id).eq("owner_id", owner).maybeSingle();
+    if (!client || client.status !== "Active" || !client.email || String(client.email).toLowerCase() !== String(p.email).toLowerCase()) { blocked.push(ap.title + ": client or recipient could not be verified"); continue; }
+    if (p.type === "payment_reminder") {
+      const { data: inv } = await admin.from("invoices").select("id,status,due_date,client_id").eq("id", p.ref).eq("owner_id", owner).maybeSingle();
+      if (!inv || inv.client_id !== client.id || !["Sent", "Overdue"].includes(inv.status) || !inv.due_date || inv.due_date >= today()) { blocked.push(ap.title + ": invoice is no longer eligible for a reminder"); continue; }
+    }
+    if (p.type === "onboarding_start") {
+      const [{ count: requests }, { count: reports }] = await Promise.all([
+        admin.from("client_document_requests").select("id", { count: "exact", head: true }).eq("client_id", client.id),
+        admin.from("client_reports").select("id", { count: "exact", head: true }).eq("client_id", client.id)
+      ]);
+      if ((requests || 0) > 0 || (reports || 0) > 0) { blocked.push(ap.title + ": onboarding already appears to have started"); continue; }
+    }
+    const { data: claimed, error: claimError } = await admin.from("trb_approvals").update({ status: "approved", note: "Auto-approved under the owner-authorized one-hour review policy; routine client-service email only." }).eq("id", ap.id).eq("status", "pending").select("id").maybeSingle();
+    if (!claimed) { blocked.push(ap.title + ": could not claim approval" + (claimError ? " — " + claimError.message : "")); continue; }
+    try {
+      const messageId = await sendEmail(admin, { to: String(p.email), subject: String(p.subject || ap.title), text: String(ap.body || ""), employee_id: String(ap.employee_id || "ada"), from: `${SENDER[String(ap.employee_id || "ada") ] || "Ada"} | The Resident Bookkeeper <info@residentbookkeeper.com>` });
+      const sentAt = new Date().toISOString();
+      await admin.from("trb_approvals").update({ status: "done", decided_at: sentAt, note: "Automatically executed after the one-hour owner review window under the owner's instruction. Routine client-service email; recipient and current client/invoice state verified.", payload: { ...p, auto_executed: true, sent_at: sentAt, resend_message_id: messageId } }).eq("id", ap.id);
+      await log(admin, owner, ap.employee_id || "ada", "auto_approval_send", "done", `Sent ${p.type} email to ${client.name}.`, { approval_id: ap.id, message_id: messageId, recipient: p.email });
+      sent.push(ap.title);
+    } catch (e) {
+      await admin.from("trb_approvals").update({ status: "failed", note: "Automatic send failed: " + (e as Error).message }).eq("id", ap.id);
+      blocked.push(ap.title + ": email send failed — " + (e as Error).message);
+    }
+  }
+  const summary = `Auto-executed ${sent.length} routine client email(s) after the one-hour review window. ${blocked.length} item(s) were held for verification or unavailable channel. Query returned ${pending?.length || 0} pending approval(s), ${eligible.length} within 14 days, and ${candidates.length} eligible routine email(s)${queryError ? "; query error: " + queryError.message : ""}.`;
+  await log(admin, owner, "ada", "auto_approval_sweep", sent.length ? "done" : "skipped", summary, { sent, blocked, cutoff, pending_count: pending?.length || 0, eligible_count: eligible.length, candidate_count: candidates.length });
+  return summary;
+}
 async function runJob(admin: SupabaseClient, job: string) {
   const prof = await ownerId(admin);
   const owner = prof.owner_id;
@@ -433,6 +601,7 @@ async function runJob(admin: SupabaseClient, job: string) {
     if (job === "ada") return await ada(admin, owner);
     if (job === "nani") return await nani(admin, owner, prof);
     if (job === "instructions") return await instructions(admin, owner, prof);
+    if (job === "auto_approvals") return await autoApprovals(admin, owner);
     if (job === "morning") { const r = []; for (const j of ["zara", "amara", "maya", "ada", "nani"]) r.push(await runJob(admin, j)); return r.join(" "); }
     return "Unknown job.";
   } catch (e) {
@@ -481,7 +650,7 @@ Deno.serve(async (req) => {
         const approvedEmail = String(p.email || "").trim().toLowerCase();
         if (!approvedEmail || to.toLowerCase() !== approvedEmail) return json({ error: "Recipient must exactly match the reviewed prospect record." }, 403);
       }
-      const text = String(body.body || ap.body || "").trim();
+      const text = withEmployeeSignature(String(ap.employee_id || ""), String(body.body || ap.body || "").trim());
       const subject = String(body.subject || p.subject || ap.title || "The Resident Bookkeeper").trim();
       const esc = (x: string) => x.replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m] as string));
       const html = `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#14110E;max-width:620px">${esc(text).replace(/\n/g, "<br>")}<p style="margin-top:22px;color:#9A7426;font-size:12px;letter-spacing:.08em">ACCURATE RECORDS · SMARTER DECISIONS · STRONGER BUSINESS<br><a href="${SITE}" style="color:#9A7426">residentbookkeeper.com</a></p></div>`;
@@ -492,7 +661,7 @@ Deno.serve(async (req) => {
         const cc = ccIn.map((x: unknown) => String(x).trim()).filter((x: string) => /^\S+@\S+\.\S+$/.test(x)).slice(0, 5);
         const attachments = (Array.isArray(body.attachments) ? body.attachments : []).filter((a: any) => a?.filename && a?.content)
           .slice(0, 5).map((a: any) => ({ filename: String(a.filename), content: String(a.content) }));
-        const id = await sendEmail(admin, { to, subject, text, html, from, cc, attachments });
+        const id = await sendEmail(admin, { to, subject, text, html, from, cc, attachments, employee_id: String(ap.employee_id || "") });
         const sentAt = new Date().toISOString();
         const updatedPayload = ap.kind === "outreach_message"
           ? { ...p, owner_send_approved: true, lawful_contact_basis_verified: true, owner_send_approved_by: callerUserId, owner_send_approved_at: sentAt, sent_recipient: to }
