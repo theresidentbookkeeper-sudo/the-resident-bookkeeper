@@ -59,6 +59,29 @@ Deno.serve(async (req) => {
     }
     return json({ ok: true, urls: out });
   }
+  // {action:"publish", approval_ids:[...]} (or none = every approved post still to go out): copies each post's picture
+  // into the public "social-public" bucket and saves payload.public_image_url, so Metricool can attach it.
+  if (body.action === "publish") {
+    let pq = admin.from("trb_approvals").select("id,payload").eq("kind", "social_post").eq("status", "approved");
+    if (Array.isArray(body.approval_ids) && body.approval_ids.length) pq = pq.in("id", body.approval_ids.map(String));
+    const { data: rows } = await pq;
+    const out: Record<string, string | null> = {};
+    for (const a of rows || []) {
+      const p = a.payload || {};
+      if (!p.storage_path) { out[a.id] = null; continue; }
+      if (!body.approval_ids && p.planned_for && Date.parse(p.planned_for) < Date.now()) continue;
+      const dl = await admin.storage.from("social-visuals").download(p.storage_path);
+      if (!dl.data) { out[a.id] = null; continue; }
+      const ext = (p.storage_path.match(/\.(png|jpe?g|webp)$/i)?.[1] || "png").toLowerCase();
+      const dest = `posts/${String(p.best_time_lagos || "").replace(/[^0-9]/g, "").slice(0, 12)}-${String(a.id).slice(0, 8)}-${Date.now().toString(36)}.${ext}`;
+      const up = await admin.storage.from("social-public").upload(dest, dl.data, { contentType: dl.data.type || `image/${ext === "jpg" ? "jpeg" : ext}`, upsert: true });
+      if (up.error) { out[a.id] = null; continue; }
+      const url = admin.storage.from("social-public").getPublicUrl(dest).data.publicUrl;
+      await admin.from("trb_approvals").update({ payload: { ...p, public_image_url: url } }).eq("id", a.id);
+      out[a.id] = url;
+    }
+    return json({ ok: true, urls: out });
+  }
   let q = admin.from("trb_approvals").select("*").eq("kind", "social_post").eq("employee_id", "amara");
   // {rerender_ids:[...]} redraws the card of those posts even if they already have one (not Manus visuals).
   const force = Array.isArray(body.rerender_ids) && body.rerender_ids.length > 0;
