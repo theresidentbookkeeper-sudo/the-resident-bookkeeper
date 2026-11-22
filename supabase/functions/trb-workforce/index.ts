@@ -175,6 +175,39 @@ SEARCH RESULTS:\n${JSON.stringify(evidence)}`;
   return added;
 }
 
+// ---------- Zara: find a decision-maker and a public business contact for leads without one (Nancy, 22 Nov 2026) ----------
+// Only details the business itself has published (its website, official pages, its job post or press about it).
+// Never guesses email patterns and never uses personal social profiles' private details.
+async function enrichContacts(admin: SupabaseClient, owner: string, ids: string[]) {
+  if (!ids.length) return [];
+  const { data: rows } = await admin.from("leads").select("id,name,country,business_type,email,phone,notes").in("id", ids);
+  const found: any[] = [];
+  for (const l of (rows || []).filter((r: any) => !r.email && !r.phone && !/^\S+ client:/i.test(r.name)).slice(0, 6)) {
+    const web = String(l.notes || "").match(/(?:Website|Company website):\s*(https?:\/\/\S+)/i)?.[1] || "";
+    const host = web && !/facebook|instagram|linkedin|upwork|indeed|jobberman|myjobmag|thesun|news/i.test(web) ? web.replace(/^https?:\/\//, "").split("/")[0] : "";
+    const qs = [
+      `"${l.name}" ${l.country || ""} contact email phone${host ? " " + host : ""}`,
+      `"${l.name}" ${l.country || ""} founder OR CEO OR "managing director" OR "finance manager" OR "hiring manager"`,
+    ];
+    const ev = (await Promise.all(qs.map((q) => tavilySearch(q, "basic").catch(() => [])))).flat().slice(0, 10)
+      .map((r: any) => ({ title: r.title, url: r.url, content: String(r.content || "").slice(0, 800) }));
+    if (!ev.length) continue;
+    let c: any = {};
+    try {
+      c = await aiJson(`You extract public business contact details for ${l.name} (${l.business_type || ""}, ${l.country || ""}). Use ONLY the supplied search results. Only accept an email or phone that the results clearly show belongs to ${l.name} itself (its website, official page, its job post or a news article about it). Never guess or construct an email address. Never use details of a different company with a similar name.`,
+        `Reply with ONE fenced json block: {"contact_name":"decision-maker's name or empty","contact_title":"CEO / founder / managing director / finance or hiring manager, or empty","email":"public business email or empty","phone":"public business phone or WhatsApp or empty","source_url":"URL copied exactly from the results where you found them"}\nRESULTS:\n${JSON.stringify(ev)}`);
+    } catch { continue; }
+    const okUrl = ev.some((e: any) => e.url === c.source_url);
+    const email = okUrl && /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(String(c.email || "").trim()) ? String(c.email).trim() : null;
+    const phone = okUrl && String(c.phone || "").replace(/\D/g, "").length >= 8 ? String(c.phone).trim() : null;
+    const person = okUrl && c.contact_name ? `${String(c.contact_name).slice(0, 80)}${c.contact_title ? " (" + String(c.contact_title).slice(0, 60) + ")" : ""}` : "";
+    if (!email && !phone && !person) continue;
+    await admin.from("leads").update({ email, phone, notes: `${l.notes || ""}\nContact person: ${person || "not found"}\nContact found by Zara at: ${c.source_url}` }).eq("id", l.id);
+    found.push({ id: l.id, name: l.name, person, email: !!email, phone: !!phone });
+  }
+  return found;
+}
+
 async function zara(admin: SupabaseClient, owner: string, focus = "") {
   const { target, markets } = await config(admin);
   const { data: existing } = await admin.from("leads").select("name").eq("owner_id", owner).order("created_at", { ascending: false }).limit(300);
@@ -223,10 +256,11 @@ Aim for 5 prospects (at least 3 whenever the evidence names suitable businesses)
     }).select("id,name").single();
     if (!error && lead) { added.push({ id: lead.id, name: lead.name, url: p.website || p.source_url }); known.push(name.toLowerCase()); }
   }
-  let hiring: any[] = [];
+  let hiring: any[] = [], contacts: any[] = [];
   try { hiring = await zaraHiring(admin, owner, known); } catch (e) { if (e instanceof NeedsKey) throw e; console.log("hiring search failed", (e as Error).message); }
-  const summary = `Research done: ${(out.opportunities || []).length} opportunities, ${added.length} new prospect(s) and ${hiring.length} business(es) hiring a bookkeeper saved as leads.`;
-  await log(admin, owner, "zara", "daily_research", "done", summary, { opportunities: out.opportunities || [], content_ideas: out.content_ideas || [], prospects_added: added, hiring_added: hiring });
+  try { contacts = await enrichContacts(admin, owner, [...added, ...hiring].map((x: any) => x.id)); } catch (e) { if (e instanceof NeedsKey) throw e; console.log("contact lookup failed", (e as Error).message); }
+  const summary = `Research done: ${(out.opportunities || []).length} opportunities, ${added.length} new prospect(s) and ${hiring.length} business(es) hiring a bookkeeper saved as leads; contacts found for ${contacts.length}.`;
+  await log(admin, owner, "zara", "daily_research", "done", summary, { opportunities: out.opportunities || [], content_ideas: out.content_ideas || [], prospects_added: added, hiring_added: hiring, contacts_found: contacts });
   return summary;
 }
 
@@ -454,7 +488,7 @@ CHANNEL: Nigeria: WhatsApp if a phone exists, else email. Outside Nigeria (US, U
 HIRING LEADS (source starts with "Hiring a bookkeeper"): they posted a job for a bookkeeper. Open with that honestly ("I saw your post for a bookkeeper on <platform>") and pitch outsourcing to TRB instead of a hire: a qualified team for less than a salary, with no PAYE, pension, leave or training costs; cover for sick days and holidays; starts within days; work reviewed by an accountant with more than 15 years' experience; done in their software. Use the details of their post (tasks, hours, software) to show you read it. Good closing question: "Would a quick comparison of hiring versus outsourcing for this role be useful?"
 - Upwork posts: channel "upwork_proposal". Write an Upwork proposal cover letter in Nancy Bello's first-person voice (it is sent from her Upwork account), 120 to 180 words: their exact tasks and how we'd do them, that she runs a small bookkeeping team (The Resident Bookkeeper), one relevant result or experience line, one question. Write as "I" (Nancy) throughout, never "Nancy Bello" in the third person. Describe her accurately: "an accountant with more than 15 years' experience" who runs a small bookkeeping team; never add titles or qualifications such as "Chartered", "CPA" or "certified". NO prices or rates in the letter (the bid amount is set on Upwork), and NO phone numbers, emails, website or links (Upwork rules). End with "Nancy Bello" on its own line (no Maya signature).
 - LinkedIn posts: channel "linkedin", a short LinkedIn message of 70 to 120 words with the Health Check link and the call/WhatsApp line.
-- Job boards (Indeed, Jobberman, MyJobMag, Seek, Reed): email if an email is given, else "linkedin" (find the company on LinkedIn) and say so in "reason".
+- Job boards (Indeed, Jobberman, MyJobMag, Seek, Reed) and LinkedIn: if Zara found a direct contact (email or phone, and a "Contact person" in the notes), write DIRECTLY to that person by first name (email, or WhatsApp in Nigeria) instead of applying on the platform. Only if there is no direct contact, use the platform: "linkedin" for LinkedIn and say in "reason" to apply or message through the job post.
 HONESTY: Zara research and "Research — approval required" records are cold prospects: never say they asked to hear from us. Only treat a lead as inbound if the source clearly records a form, pricing, Books Lite sign-up, referral or direct enquiry; then thank them for getting in touch and answer what they asked. Never contact bounced, suppressed, opt-out or previously contacted leads.
 ${PRICES}${focus ? `\nInstruction from Nancy: ${focus}` : ""}`;
   const done: any[] = [];
@@ -708,6 +742,12 @@ async function runJob(admin: SupabaseClient, job: string) {
     if (job === "zara") return await zara(admin, owner);
     if (job === "amara") return await amara(admin, owner);
     if (job === "maya") return await maya(admin, owner);
+    if (job === "enrich") {
+      const { data: rec } = await admin.from("leads").select("id").eq("owner_id", owner).in("stage", ["New", "Prospect", "Research — approval required"]).is("email", null).is("phone", null).gte("created_at", new Date(Date.now() - 30 * 864e5).toISOString()).order("created_at", { ascending: false }).limit(6);
+      const f = await enrichContacts(admin, owner, (rec || []).map((r: any) => r.id));
+      await log(admin, owner, "zara", "contact_lookup", "done", `Looked up contacts for ${(rec || []).length} lead(s); found ${f.length}.`, { found: f });
+      return `Contacts found for ${f.length} lead(s).`;
+    }
     if (job === "ada") return await ada(admin, owner);
     if (job === "nani") return await nani(admin, owner, prof);
     if (job === "instructions") return await instructions(admin, owner, prof);
