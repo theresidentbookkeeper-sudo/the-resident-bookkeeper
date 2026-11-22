@@ -146,7 +146,7 @@ Today is ${today()}. Use web search. Be factual: every item must come from a pag
  "prospects":[{"name":"","country":"","business_type":"","why_they_need_us":"","website":"","public_email":"","public_phone":"","source_url":"","active_request":false}],
  "content_ideas":["..."]}
 Rules: 3 opportunities (deadlines, rule changes, programmes, events that create bookkeeping demand in our markets this month). Prioritise active public recommendation requests such as "recommend a bookkeeper", "need payroll", "looking for an accountant" and similar. Set active_request=true ONLY when the supplied source is an actual public request, not a general article or business directory.
-Aim for 5 prospects (at least 3 whenever the evidence names suitable businesses): real, NAMED small or growing BUSINESSES (not individuals) found in the evidence, with their own website or listing, that plausibly need bookkeeping now because they are opening, expanding, adding branches, winning grants or hiring finance help (e.g. new SMEs, grant/competition participants, businesses hiring an accountant, MTD-affected UK sole traders' firms, Nigerian SMEs). Give public_email/public_phone ONLY if published on the business's own site or listing, else "". Skip these existing leads: ${known.slice(0, 120).join("; ") || "none"}.
+Aim for 5 prospects (at least 3 whenever the evidence names suitable businesses): real, NAMED small or mid-sized BUSINESSES (roughly 2 to 200 staff; skip big chains with their own finance department, listed companies, government bodies and companies that raised large investment rounds) (not individuals) found in the evidence, with their own website or listing, that plausibly need bookkeeping now because they are opening, expanding, adding branches, winning grants or hiring finance help (e.g. new SMEs, grant/competition participants, businesses hiring an accountant, MTD-affected UK sole traders' firms, Nigerian SMEs). Give public_email/public_phone ONLY if published on the business's own site or listing, else "". Skip these existing leads: ${known.slice(0, 120).join("; ") || "none"}.
 3 content ideas for Amara's social posts based on the opportunities.`;
   let text: string;
   if (useGemini()) {
@@ -414,7 +414,14 @@ ${PRICES}${focus ? `\nInstruction from Nancy: ${focus}` : ""}`;
   for (const l of todo) {
     try {
       const notes = String(l.notes || "").replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email redacted]").replace(/\+?\d[\d\s().-]{7,}\d/g, "[phone redacted]");
-      const m = await aiTool(system, JSON.stringify({ name: l.name, business_type: l.business_type, country: l.country, source: l.source, stage: l.stage, notes, has_phone: !!l.phone, has_email: !!l.email }), tool, 1400);
+      const input = JSON.stringify({ name: l.name, business_type: l.business_type, country: l.country, source: l.source, stage: l.stage, notes, has_phone: !!l.phone, has_email: !!l.email });
+      let m: any;
+      try { m = await aiTool(system, input, tool, 1400); } catch (e1) { if (e1 instanceof NeedsKey) throw e1; m = await aiTool(system, input + "\nReturn strictly valid JSON: escape every line break inside strings as \\n.", tool, 1400); }
+      // Only use a channel we can actually reach; otherwise say so for Nancy.
+      const ig = /instagram\.com/i.test(String(l.notes || "")), fbk = /facebook\.com/i.test(String(l.notes || ""));
+      const reachable = (c: string) => (c === "whatsapp" && !!l.phone) || (c === "email" && !!l.email) || (c === "instagram_dm" && ig) || c === "linkedin";
+      if (!reachable(m.channel)) m.channel = String(l.country || "").toLowerCase() === "nigeria" && l.phone ? "whatsapp" : l.email ? "email" : l.phone ? "whatsapp" : ig ? "instagram_dm" : "linkedin";
+      if (!l.email && !l.phone) m.reason = `${m.reason ? m.reason + " " : ""}No public email or phone yet: send via ${ig ? "Instagram DM" : fbk ? "their Facebook page" : "their website contact form or LinkedIn"}.`;
       const { data: ap } = await admin.from("trb_approvals").insert({ owner_id: owner, employee_id: "maya", kind: "outreach_message", title: `${m.channel} to ${l.name}`, body: m.message, payload: { lead_id: l.id, lead_name: l.name, channel: m.channel, subject: m.subject || null, phone: l.phone, email: l.email, reason: m.reason || null } }).select("id").single();
       done.push({ lead: l.name, approval_id: ap?.id });
     } catch (e) { if (e instanceof NeedsKey) throw e; done.push({ lead: l.name, error: (e as Error).message }); }
