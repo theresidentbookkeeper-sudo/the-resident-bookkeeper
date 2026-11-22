@@ -273,7 +273,20 @@ const ANSWER_PRODUCT: Record<string, string> = {
   software: "If you are still on Excel, we set up Zoho, Sage or the software you choose, move your records across and train your team.",
 };
 const CONTACTS = "Call or WhatsApp: +234 802 600 0078\nInstagram: @theresidentbookkeeper\nFacebook: facebook.com/residentbookkeeper\nWebsite: residentbookkeeper.com";
-const answerClosing = (product: string) => `${ANSWER_PRODUCT[product] || ANSWER_PRODUCT.books_lite}\n\n${CONTACTS}`;
+// Reddit removes answers with phone numbers and contact lists, so there the closing is a short disclosure only.
+// Quora, Nairaland and other forums get the product line plus all contacts.
+const SHORT_PRODUCT: Record<string, string> = {
+  books_lite: "For very small businesses and freelancers, our Books Lite plan is usually the easiest place to start.",
+  monthly: "For growing businesses, a monthly bookkeeping plan is usually the easiest way to stay on top of this.",
+  catch_up: "If your books are already behind, catch-up bookkeeping is usually the quickest way back.",
+  clean_up: "If the records are already messy, a one-off clean-up is usually the best first step.",
+  payroll: "If payroll is the main headache, getting monthly payroll support in place usually fixes it.",
+  reconciliation: "Monthly bank reconciliation is usually the habit that fixes this.",
+  software: "Moving off Excel into proper accounting software usually makes this much easier.",
+};
+const answerClosing = (product: string, platform = "") => /reddit/i.test(platform)
+  ? `Full disclosure: I run a bookkeeping firm, The Resident Bookkeeper (residentbookkeeper.com). ${SHORT_PRODUCT[product] || SHORT_PRODUCT.books_lite}`
+  : `${ANSWER_PRODUCT[product] || ANSWER_PRODUCT.books_lite}\n\n${CONTACTS}`;
 
 async function runAnswers(admin: SupabaseClient) {
   const ownerId = await owner(admin);
@@ -297,11 +310,11 @@ async function runAnswers(admin: SupabaseClient) {
   for (const it of items) {
     const qurl = String(it.question_url || "").trim();
     const product = ANSWER_PRODUCT[String(it.product || "")] ? String(it.product) : "books_lite";
-    const answer = plain(it.answer, 3000) + "\n\n" + answerClosing(product), question = plain(it.question, 300);
+    const platform = plain(it.platform, 40) || "Web";
+    const answer = plain(it.answer, 3000) + "\n\n" + answerClosing(product, platform + " " + qurl), question = plain(it.question, 300);
     if (!allowedQ.has(qurl) || done.has(qurl)) { skipped.push(question + ": bad or repeated link"); continue; }
     if (answer.split(" ").length < 60 || !question) { skipped.push(question + ": answer too short"); continue; }
     if (!(await urlAlive(qurl))) { skipped.push(question + ": question page not reachable"); continue; }
-    const platform = plain(it.platform, 40) || "Web";
     await admin.from("trb_approvals").insert({
       owner_id: ownerId, employee_id: "zara", kind: "other", status: "pending",
       title: `Answer on ${platform}: ${question}`.slice(0, 200),
