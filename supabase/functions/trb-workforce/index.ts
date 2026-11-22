@@ -63,13 +63,13 @@ async function gemini(system: string, prompt: string, search = false, images: { 
   }
   throw new Error(last);
 }
-async function tavilySearch(query: string) {
+async function tavilySearch(query: string, depth = "advanced", timeRange = "") {
   const key = Deno.env.get("TAVILY_API_KEY");
   if (!key) throw new NeedsKey("TAVILY_API_KEY is not configured. Add a free Tavily API key in Supabase Edge Function secrets; the free Researcher plan includes 1,000 search credits/month with no credit card.");
   const res = await fetch("https://api.tavily.com/search", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ api_key: key, query, topic: "general", search_depth: "advanced", max_results: 5, include_answer: false, include_raw_content: false })
+    body: JSON.stringify({ api_key: key, query, topic: "general", search_depth: depth, max_results: 5, include_answer: false, include_raw_content: false, ...(timeRange ? { time_range: timeRange } : {}) })
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error("Tavily search failed " + res.status + ": " + (data?.detail || data?.message || "unknown"));
@@ -134,6 +134,47 @@ async function config(admin: SupabaseClient) {
 }
 
 // ---------- Zara: research + prospects ----------
+// ---------- Zara: businesses actively hiring a bookkeeper (Nancy, 22 Nov 2026) ----------
+// Job posts on LinkedIn, Upwork, Indeed and local job boards. Each becomes a lead so Maya can suggest outsourcing to TRB instead.
+async function zaraHiring(admin: SupabaseClient, owner: string, known: string[]) {
+  const since = new Date(Date.now() - 120 * 864e5).toISOString();
+  const { data: prev } = await admin.from("leads").select("notes").eq("owner_id", owner).like("source", "Hiring a bookkeeper%").gte("created_at", since).limit(500);
+  const seen = new Set<string>();
+  for (const l of prev || []) for (const u of String(l.notes || "").match(/https?:\/\/\S+/g) || []) seen.add(u.replace(/[).,]+$/, ""));
+  const queries = [
+    "site:linkedin.com/jobs bookkeeper Lagos OR Abuja OR Nigeria",
+    "site:linkedin.com/posts hiring bookkeeper OR \"accounts officer\" small business",
+    "site:upwork.com/freelance-jobs bookkeeping monthly bank reconciliation QuickBooks",
+    "site:jobberman.com OR site:myjobmag.com OR site:hotnigerianjobs.com bookkeeper OR \"accounts assistant\"",
+    "site:indeed.com OR site:uk.indeed.com OR site:ca.indeed.com part-time bookkeeper small business",
+    "site:seek.com.au OR site:reed.co.uk part-time bookkeeper small business",
+  ];
+  const batches = await Promise.all(queries.map((q) => tavilySearch(q, "basic", "month").catch(() => [])));
+  const evidence = batches.flat().filter((r: any) => r?.url && !seen.has(r.url)).slice(0, 30).map((r: any) => ({ title: r.title, url: r.url, content: String(r.content || "").slice(0, 900), published_date: r.published_date || null }));
+  if (!evidence.length) return [];
+  const system = `You are Zara, Research & Business Development Manager at The Resident Bookkeeper (TRB), a remote bookkeeping firm. Today is ${today()}. Use ONLY the supplied search evidence; never invent companies, people, emails or links.`;
+  const prompt = `From these search results, pick up to 6 RECENT job posts where a small or mid-sized business (or an Upwork client) is looking for a bookkeeper, accounts assistant, accounts officer or part-time/freelance bookkeeping help. Skip recruitment agencies hiring for someone else, large corporates, banks, government bodies, and senior roles (CFO, finance director, finance manager). Skip anything clearly older than 60 days. Skip these known businesses: ${known.slice(0, 150).join("; ") || "none"}.
+Reply with ONE fenced json block: {"hiring":[{"name":"company name, or 'Upwork client' if not named","platform":"LinkedIn | Upwork | Indeed | Jobberman | MyJobMag | Seek | Reed | Other","country":"","business_type":"","role":"job title as posted","job_url":"URL copied exactly from the results","company_website":"only if shown","public_email":"only if shown in the post","summary":"what they need: tasks, hours, software, start date, budget if shown"}]}
+SEARCH RESULTS:\n${JSON.stringify(evidence)}`;
+  const out = await aiJson(system, prompt);
+  const allowed = new Set(evidence.map((e: any) => e.url));
+  const added: any[] = [];
+  for (const h of (out.hiring || []).slice(0, 6)) {
+    const url = String(h.job_url || "").trim();
+    if (!allowed.has(url) || seen.has(url)) continue;
+    const platform = String(h.platform || "Other").slice(0, 30);
+    const name = (String(h.name || "").trim() && !/^upwork client$/i.test(String(h.name).trim()) ? String(h.name).trim() : `${platform} client: ${String(h.role || "bookkeeper").slice(0, 60)}`);
+    if (known.includes(name.toLowerCase())) continue;
+    const { data: lead, error } = await admin.from("leads").insert({
+      owner_id: owner, name, business_type: h.business_type || null, country: h.country || null,
+      source: `Hiring a bookkeeper — ${platform}`, stage: "Prospect", email: h.public_email || null, phone: null,
+      notes: `Hiring post: ${h.role || "bookkeeper"} on ${platform}\nJob post: ${url}\nWhat they need: ${h.summary || ""}\nCompany website: ${h.company_website || ""}\nAdded by Zara on ${today()}.`,
+    }).select("id,name").single();
+    if (!error && lead) { added.push({ id: lead.id, name: lead.name, platform, url }); known.push(name.toLowerCase()); seen.add(url); }
+  }
+  return added;
+}
+
 async function zara(admin: SupabaseClient, owner: string, focus = "") {
   const { target, markets } = await config(admin);
   const { data: existing } = await admin.from("leads").select("name").eq("owner_id", owner).order("created_at", { ascending: false }).limit(300);
@@ -182,8 +223,10 @@ Aim for 5 prospects (at least 3 whenever the evidence names suitable businesses)
     }).select("id,name").single();
     if (!error && lead) { added.push({ id: lead.id, name: lead.name, url: p.website || p.source_url }); known.push(name.toLowerCase()); }
   }
-  const summary = `Research done: ${(out.opportunities || []).length} opportunities, ${added.length} new prospect(s) saved as leads.`;
-  await log(admin, owner, "zara", "daily_research", "done", summary, { opportunities: out.opportunities || [], content_ideas: out.content_ideas || [], prospects_added: added });
+  let hiring: any[] = [];
+  try { hiring = await zaraHiring(admin, owner, known); } catch (e) { if (e instanceof NeedsKey) throw e; console.log("hiring search failed", (e as Error).message); }
+  const summary = `Research done: ${(out.opportunities || []).length} opportunities, ${added.length} new prospect(s) and ${hiring.length} business(es) hiring a bookkeeper saved as leads.`;
+  await log(admin, owner, "zara", "daily_research", "done", summary, { opportunities: out.opportunities || [], content_ideas: out.content_ideas || [], prospects_added: added, hiring_added: hiring });
   return summary;
 }
 
@@ -390,7 +433,7 @@ async function maya(admin: SupabaseClient, owner: string, focus = "") {
   const messaged = new Set((fu || []).filter((f: any) => f.message || f.status === "Sent").map((f: any) => f.lead_id));
   const todo = (leads || []).filter((l: any) => !drafted.has(l.id) && !messaged.has(l.id)).slice(0, 8);
   if (!todo.length) { const s = "No new leads waiting for a first message."; await log(admin, owner, "maya", "first_messages", "skipped", s); return s; }
-  const tool = { name: "message", description: "First outreach message for one lead.", input_schema: { type: "object", required: ["channel", "message"], properties: { channel: { type: "string", enum: ["whatsapp", "email", "instagram_dm", "linkedin"] }, subject: { type: "string" }, message: { type: "string" }, reason: { type: "string" } } } };
+  const tool = { name: "message", description: "First outreach message for one lead.", input_schema: { type: "object", required: ["channel", "message"], properties: { channel: { type: "string", enum: ["whatsapp", "email", "instagram_dm", "linkedin", "upwork_proposal"] }, subject: { type: "string" }, message: { type: "string" }, reason: { type: "string" } } } };
   const system = `You are Maya, Sales & Client Acquisition Manager at The Resident Bookkeeper (${SITE}). TRB sells: ${SERVICES}.
 Your job is to write first messages that get a REPLY and turn prospects into leads and clients. Not polite filler: a specific, useful, confident sales message.
 TONE: warm, confident, plain English a busy owner understands; British spelling; short paragraphs; no jargon; no hype words ("revolutionary", "best-in-class"); no "no pressure at all", "just let me know", "I'd love to"; no emojis except ✔ ticks in WhatsApp lists.
@@ -408,6 +451,10 @@ STRUCTURE (follow it):
 The signature (Warm regards, Maya, Sales & Client Acquisition Manager, The Resident Bookkeeper) is added automatically; do not write it.
 LENGTH: WhatsApp 90 to 150 words. Email 130 to 200 words with a specific subject line naming their business and the outcome (e.g. "<Business>: three stores, online orders, one clear set of books").
 CHANNEL: Nigeria: WhatsApp if a phone exists, else email. Outside Nigeria (US, UK, Canada, Australia and others): email if an email exists (their phones are usually shop landlines), else WhatsApp, else Instagram DM or LinkedIn.
+HIRING LEADS (source starts with "Hiring a bookkeeper"): they posted a job for a bookkeeper. Open with that honestly ("I saw your post for a bookkeeper on <platform>") and pitch outsourcing to TRB instead of a hire: a qualified team for less than a salary, with no PAYE, pension, leave or training costs; cover for sick days and holidays; starts within days; work reviewed by an accountant with more than 15 years' experience; done in their software. Use the details of their post (tasks, hours, software) to show you read it. Good closing question: "Would a quick comparison of hiring versus outsourcing for this role be useful?"
+- Upwork posts: channel "upwork_proposal". Write an Upwork proposal cover letter in Nancy Bello's first-person voice (it is sent from her Upwork account), 120 to 180 words: their exact tasks and how we'd do them, that she runs a small bookkeeping team (The Resident Bookkeeper), one relevant result or experience line, one question. NO phone numbers, emails, website, links or prices outside Upwork (Upwork rules). End with "Nancy Bello" (no Maya signature).
+- LinkedIn posts: channel "linkedin", a short LinkedIn message of 70 to 120 words with the Health Check link and the call/WhatsApp line.
+- Job boards (Indeed, Jobberman, MyJobMag, Seek, Reed): email if an email is given, else "linkedin" (find the company on LinkedIn) and say so in "reason".
 HONESTY: Zara research and "Research — approval required" records are cold prospects: never say they asked to hear from us. Only treat a lead as inbound if the source clearly records a form, pricing, Books Lite sign-up, referral or direct enquiry; then thank them for getting in touch and answer what they asked. Never contact bounced, suppressed, opt-out or previously contacted leads.
 ${PRICES}${focus ? `\nInstruction from Nancy: ${focus}` : ""}`;
   const done: any[] = [];
@@ -419,9 +466,12 @@ ${PRICES}${focus ? `\nInstruction from Nancy: ${focus}` : ""}`;
       try { m = await aiTool(system, input, tool, 1400); } catch (e1) { if (e1 instanceof NeedsKey) throw e1; m = await aiTool(system, input + "\nReturn strictly valid JSON: escape every line break inside strings as \\n.", tool, 1400); }
       // Only use a channel we can actually reach; otherwise say so for Nancy.
       const ig = /instagram\.com/i.test(String(l.notes || "")), fbk = /facebook\.com/i.test(String(l.notes || ""));
-      const reachable = (c: string) => (c === "whatsapp" && !!l.phone) || (c === "email" && !!l.email) || (c === "instagram_dm" && ig) || c === "linkedin";
+      const upwork = /upwork/i.test(String(l.source || ""));
+      if (upwork) m.channel = "upwork_proposal";
+      const reachable = (c: string) => (c === "whatsapp" && !!l.phone) || (c === "email" && !!l.email) || (c === "instagram_dm" && ig) || c === "linkedin" || (c === "upwork_proposal" && upwork);
       if (!reachable(m.channel)) m.channel = String(l.country || "").toLowerCase() === "nigeria" && l.phone ? "whatsapp" : l.email ? "email" : l.phone ? "whatsapp" : ig ? "instagram_dm" : "linkedin";
-      if (!l.email && !l.phone) m.reason = `${m.reason ? m.reason + " " : ""}No public email or phone yet: send via ${ig ? "Instagram DM" : fbk ? "their Facebook page" : "their website contact form or LinkedIn"}.`;
+      if (upwork) m.reason = `Submit this as a proposal on Upwork from your account: ${String(l.notes || "").match(/https?:\/\/\S+/)?.[0] || ""}`;
+      else if (!l.email && !l.phone) m.reason = `${m.reason ? m.reason + " " : ""}No public email or phone yet: send via ${ig ? "Instagram DM" : fbk ? "their Facebook page" : "their website contact form or LinkedIn"}.`;
       const { data: ap } = await admin.from("trb_approvals").insert({ owner_id: owner, employee_id: "maya", kind: "outreach_message", title: `${m.channel} to ${l.name}`, body: m.message, payload: { lead_id: l.id, lead_name: l.name, channel: m.channel, subject: m.subject || null, phone: l.phone, email: l.email, reason: m.reason || null } }).select("id").single();
       done.push({ lead: l.name, approval_id: ap?.id });
     } catch (e) { if (e instanceof NeedsKey) throw e; done.push({ lead: l.name, error: (e as Error).message }); }
