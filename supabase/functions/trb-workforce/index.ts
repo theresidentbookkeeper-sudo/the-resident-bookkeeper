@@ -146,16 +146,20 @@ Today is ${today()}. Use web search. Be factual: every item must come from a pag
  "prospects":[{"name":"","country":"","business_type":"","why_they_need_us":"","website":"","public_email":"","public_phone":"","source_url":"","active_request":false}],
  "content_ideas":["..."]}
 Rules: 3 opportunities (deadlines, rule changes, programmes, events that create bookkeeping demand in our markets this month). Prioritise active public recommendation requests such as "recommend a bookkeeper", "need payroll", "looking for an accountant" and similar. Set active_request=true ONLY when the supplied source is an actual public request, not a general article or business directory.
-Up to 5 prospects: real small or growing BUSINESSES (not individuals) that plausibly need bookkeeping now (e.g. new SMEs, grant/competition participants, businesses hiring an accountant, MTD-affected UK sole traders' firms, Nigerian SMEs). Give public_email/public_phone ONLY if published on the business's own site or listing, else "". Skip these existing leads: ${known.slice(0, 120).join("; ") || "none"}.
+Aim for 5 prospects (at least 3 whenever the evidence names suitable businesses): real, NAMED small or growing BUSINESSES (not individuals) found in the evidence, with their own website or listing, that plausibly need bookkeeping now because they are opening, expanding, adding branches, winning grants or hiring finance help (e.g. new SMEs, grant/competition participants, businesses hiring an accountant, MTD-affected UK sole traders' firms, Nigerian SMEs). Give public_email/public_phone ONLY if published on the business's own site or listing, else "". Skip these existing leads: ${known.slice(0, 120).join("; ") || "none"}.
 3 content ideas for Amara's social posts based on the opportunities.`;
   let text: string;
   if (useGemini()) {
+    // Named businesses that are growing right now (new branches, openings, grants) produce real leads for Maya;
+    // "recommend a bookkeeper" posts rarely name a business, so they are only one of the searches.
+    const ym = new Date().toLocaleString("en-GB", { month: "long", year: "numeric" });
     const queries = [
-      "small business owner looking for a bookkeeper accountant payroll recommendation Nigeria 2026",
-      "small business looking for bookkeeping accountant payroll support United Kingdom United States Canada Australia 2026",
+      `new restaurant OR store OR clinic opens Lagos OR Abuja OR Port Harcourt ${ym}`,
+      `Nigerian SME grant OR accelerator winners announced ${ym} businesses`,
+      `independent business opens second location ${ym} UK OR "United Kingdom"`,
+      `small business expands new location ${ym} United States OR Canada OR Australia local news`,
       "site:reddit.com small business need a bookkeeper accountant payroll 2026",
-      "public Facebook LinkedIn business owner request recommend bookkeeper accountant payroll 2026",
-      "small business hiring bookkeeper accountant outsourced finance support November 2026"
+      "small business hiring bookkeeper accountant outsourced finance support " + ym
     ];
     const batches = await Promise.all(queries.map((q) => tavilySearch(q)));
     const evidence = batches.flat().slice(0, 25).map((r: any) => ({ title: r.title, url: r.url, content: String(r.content || "").slice(0, 1200), published_date: r.published_date || null }));
@@ -388,14 +392,29 @@ async function maya(admin: SupabaseClient, owner: string, focus = "") {
   if (!todo.length) { const s = "No new leads waiting for a first message."; await log(admin, owner, "maya", "first_messages", "skipped", s); return s; }
   const tool = { name: "message", description: "First outreach message for one lead.", input_schema: { type: "object", required: ["channel", "message"], properties: { channel: { type: "string", enum: ["whatsapp", "email", "instagram_dm", "linkedin"] }, subject: { type: "string" }, message: { type: "string" }, reason: { type: "string" } } } };
   const system = `You are Maya, Sales & Client Acquisition Manager at The Resident Bookkeeper (${SITE}). TRB sells: ${SERVICES}.
-Write a short, warm, specific first message as Maya, Sales & Client Acquisition Manager at The Resident Bookkeeper. Never write as Nancy or claim to be the founder. Mention something specific about the lead. End with the mandatory Maya signature: Warm regards, Maya, Sales & Client Acquisition Manager, The Resident Bookkeeper (each on its own line). One clear next step (free 15-minute bookkeeping health check, or reply to chat). No pressure, no false claims, no prices unless asked; if price comes up, use only the approved prices below.\n${PRICES}
-Do not infer enquiry intent from the stage alone. Use source and notes: only treat an item as inbound if it clearly records a contact-form, pricing, Books Lite sign-up, referral or direct enquiry. Zara research and "Research — approval required" records are cold prospects; draft respectfully but do not claim they requested contact or send them automatically. Never contact bounced, suppressed, opt-out or previously contacted leads without fresh lawful basis.
-Pick the channel: WhatsApp if a phone exists, else email if an email exists, else Instagram DM or LinkedIn.${focus ? `\nInstruction from Nancy: ${focus}` : ""}`;
+Your job is to write first messages that get a REPLY and turn prospects into leads and clients. Not polite filler: a specific, useful, confident sales message.
+TONE: warm, confident, plain English a busy owner understands; British spelling; short paragraphs; no jargon; no hype words ("revolutionary", "best-in-class"); no "no pressure at all", "just let me know", "I'd love to"; no emojis except ✔ ticks in WhatsApp lists.
+IDENTITY: you are Maya, Sales & Client Acquisition Manager. Never say you are the founder and never write as Nancy. You may say "our team is led by Nancy Bello, an accountant with more than 15 years' experience".
+STRUCTURE (follow it):
+1. Greeting by first name if the notes give one, else "Hello <business> team". One line saying who you are ("I'm Maya from The Resident Bookkeeper").
+2. One specific, TRUE observation from the notes (their growth, new branch, model) — never invent facts.
+3. The problem their kind of business usually has with money and records (say it concretely for their model: e.g. POS settlements across branches, tenant rentals, project costs, retainers, deposits), and what it costs them (can't see which part makes money, cash slipping, stressful tax time, higher accountant fees).
+4. What we do for them: 3 to 5 short concrete outcomes (✔ ticks on WhatsApp, "-" bullets in email): every transaction recorded, every bank/payment account reconciled monthly, a monthly profit report (by branch/project/channel where relevant), tax-ready records (Nigeria: VAT and WHT tracked; UK: VAT-ready; Canada/Australia: GST-ready; US: ready for your CPA/tax preparer). We work remotely in QuickBooks, Sage, Zoho or Excel (never mention Xero).
+5. Price anchor: "Plans start at" the starting price for their country from the approved list (Nigeria ₦150,000 a month, or Books Lite ₦100,000 a year for very small businesses; US $299; UK £229; Canada C$399; Australia A$449; other countries in US dollars). Never quote anything else.
+6. The free Books Health Check (8 short questions; we reply with what their books need and the exact cost): residentbookkeeper.com/#health-check. It is a form, not a call.
+7. END WITH ONE easy question they can answer in a word or a line, e.g. "Who keeps your books at the moment?" or "Would a short note on how we'd set this up for <business> be useful? A one-word reply is fine."
+8. A contact line: "Call or WhatsApp: +234 802 600 0078" (email adds " | residentbookkeeper.com").
+9. Emails only, as the last line before the signature: "THERESIDENTBOOKKEEPER LTD, No. 1 Solomon Lar Way, Jabi, Abuja, Nigeria. If this isn't relevant, reply \"no thanks\" and I won't contact you again." (Nigerian emails may use just: If now isn't the right time, just reply "not now" and I won't follow up.)
+The signature (Warm regards, Maya, Sales & Client Acquisition Manager, The Resident Bookkeeper) is added automatically; do not write it.
+LENGTH: WhatsApp 90 to 150 words. Email 130 to 200 words with a specific subject line naming their business and the outcome (e.g. "<Business>: three stores, online orders, one clear set of books").
+CHANNEL: Nigeria: WhatsApp if a phone exists, else email. Outside Nigeria (US, UK, Canada, Australia and others): email if an email exists (their phones are usually shop landlines), else WhatsApp, else Instagram DM or LinkedIn.
+HONESTY: Zara research and "Research — approval required" records are cold prospects: never say they asked to hear from us. Only treat a lead as inbound if the source clearly records a form, pricing, Books Lite sign-up, referral or direct enquiry; then thank them for getting in touch and answer what they asked. Never contact bounced, suppressed, opt-out or previously contacted leads.
+${PRICES}${focus ? `\nInstruction from Nancy: ${focus}` : ""}`;
   const done: any[] = [];
   for (const l of todo) {
     try {
       const notes = String(l.notes || "").replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email redacted]").replace(/\+?\d[\d\s().-]{7,}\d/g, "[phone redacted]");
-      const m = await aiTool(system, JSON.stringify({ name: l.name, business_type: l.business_type, country: l.country, source: l.source, stage: l.stage, notes, has_phone: !!l.phone, has_email: !!l.email }), tool, 900);
+      const m = await aiTool(system, JSON.stringify({ name: l.name, business_type: l.business_type, country: l.country, source: l.source, stage: l.stage, notes, has_phone: !!l.phone, has_email: !!l.email }), tool, 1400);
       const { data: ap } = await admin.from("trb_approvals").insert({ owner_id: owner, employee_id: "maya", kind: "outreach_message", title: `${m.channel} to ${l.name}`, body: m.message, payload: { lead_id: l.id, lead_name: l.name, channel: m.channel, subject: m.subject || null, phone: l.phone, email: l.email, reason: m.reason || null } }).select("id").single();
       done.push({ lead: l.name, approval_id: ap?.id });
     } catch (e) { if (e instanceof NeedsKey) throw e; done.push({ lead: l.name, error: (e as Error).message }); }
