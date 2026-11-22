@@ -324,7 +324,7 @@ function openDlg(id,svc){var g=d.getElementById(id);if(!g||!g.showModal)return f
 d.addEventListener('click',function(e){var t=e.target.closest('[data-open]');if(t){if(openDlg(t.getAttribute('data-open'),t.getAttribute('data-service')))e.preventDefault();return}
  var c=e.target.closest('[data-close]');if(c){c.closest('dialog').close();return}
  if(e.target.tagName==='DIALOG'){var r=e.target.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)e.target.close()}});
-if(location.hash==='#whatsapp-start')openDlg('qs');
+if(location.hash==='#whatsapp-start')openDlg('qs');if(location.hash==='#health-check')openDlg('hc');
 d.querySelectorAll('select[name=country]').forEach(function(s){s.addEventListener('change',function(){s.dataset.t=1})});
 function val(f,n){var el=f.elements[n];return el?String(el.value||'').trim():''}
 function check(f,m){var name=val(f,'name'),biz=val(f,'business');if(name.length<2){m.textContent='Enter your name.';f.elements.name.focus();return false}if(biz.length<2){m.textContent='Enter your business name.';f.elements.business.focus();return false}return true}
