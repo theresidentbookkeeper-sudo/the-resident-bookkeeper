@@ -232,7 +232,7 @@ function fixPhones(text: string) {
     });
 }
 const MIX: Record<string, number> = { educational: 9, humour: 4, interactive: 4, inspirational: 3, behind_the_scenes: 3, reel_tutorial: 3, brand_awareness: 2, promotional: 2 };
-const POST_SCHEMA = `{"posts":[{"title":"internal name, max 8 words","category":"one of: ${Object.keys(MIX).join(", ")}","format":"single_image | carousel | reel | story | poll | quiz","goal":"views | likes_and_saves | follows | enquiries","market":"Nigeria | International","hook":"first line that stops the scroll, max 14 words","caption_instagram":"full Instagram caption including the hook as the first line, Instagram-style call to action, then the hashtags","caption_facebook":"the same post adapted for Facebook (links allowed), then the hashtags","comment_answer":"required for interactive posts, else empty string","problem":"the problem, feeling or need","how_trb_helps":"one line","next_step":"what the audience should do","visual_brief":"for a Manus visual: one line on how the caption uses it; otherwise one line describing the card","card":{"kicker":"2 or 3 word label in capitals (QUICK TIP, QUIZ, POLL, DID YOU KNOW, BEHIND THE SCENES) or empty","headline":"the words printed on the card, max 12 words, never a design description","lines":["2 to 4 short lines printed on the card, max 9 words each"],"button":"button text, max 4 words","style":"checklist | steps | options"},"slides_or_script":["carousel slide texts or reel shot list, if any"]}]}`;
+const POST_SCHEMA = `{"posts":[{"title":"internal name, max 8 words","category":"one of: ${Object.keys(MIX).join(", ")}","format":"single_image | carousel | reel | story | poll | quiz","goal":"views | likes_and_saves | follows | enquiries","market":"Nigeria | International","hook":"first line that stops the scroll, max 14 words","caption_instagram":"full Instagram caption including the hook as the first line, Instagram-style call to action, then the hashtags","caption_facebook":"the same post adapted for Facebook (links allowed), then the hashtags","comment_answer":"required for interactive posts, else empty string","problem":"the problem, feeling or need","how_trb_helps":"one line","next_step":"what the audience should do","visual_brief":"for a Manus visual: one line on how the caption uses it; otherwise one line describing the card","card":{"kicker":"2 or 3 word label in capitals (QUICK TIP, QUIZ, POLL, DID YOU KNOW, BEHIND THE SCENES) or empty","headline":"the words printed on the card, max 12 words, never a design description","lines":["2 to 4 short lines printed on the card, max 9 words each"],"button":"button text, max 4 words","style":"checklist | steps | options"},"slides_or_script":["carousel slide texts or reel shot list, if any"],"zara_source":"only for the weekly From our research post: the ref of the Zara item used, else empty"}]}`;
 
 async function aiJson(system: string, prompt: string, images: { mime: string; data: string }[] = []) {
   if (useGemini()) {
@@ -294,6 +294,31 @@ async function amara(admin: SupabaseClient, owner: string, focus = "") {
   const lastPlan = AH.find((a: any) => a.payload?.price_plan)?.payload?.price_plan;
   const promoPlan = PROMO_ROTATION[(PROMO_ROTATION.indexOf(lastPlan) + 1) % PROMO_ROTATION.length];
   for (const s of plan as any[]) { s.market = international && s.time_lagos === "13:00" ? intlCountry : "Nigeria"; if (s.time_lagos === "16:00") s.price_plan = promoPlan; }
+  // Once a week the 08:00 post is built from Zara's work (Nancy, 22 Nov 2026): her newest guide, a question she
+  // answered on a forum, or her daily research. A waiting Manus visual is kept for the next day.
+  const zaraRecent = AH.filter((a: any) => a.payload?.from_zara && Math.abs(dayMs - Date.parse(a.payload?.planned_for || a.created_at)) < 6.5 * 864e5);
+  let zaraBrief = "";
+  const zaraSlot: any = !zaraRecent.length && (plan as any[]).find((s: any) => s.time_lagos === "08:00");
+  if (zaraSlot) {
+    const usedRefs = new Set(AH.map((a: any) => a.payload?.from_zara?.ref).filter(Boolean));
+    const [{ data: guides }, { data: answers }, { data: research }] = await Promise.all([
+      admin.from("trb_guides").select("slug,title,answer,published_at").eq("status", "published").order("published_at", { ascending: false }).limit(6),
+      admin.from("trb_approvals").select("id,body,payload,created_at").eq("employee_id", "zara").contains("payload", { type: "community_answer" }).order("created_at", { ascending: false }).limit(6),
+      admin.from("trb_ai_work_log").select("proof,created_at").eq("employee_id", "zara").eq("job", "daily_research").eq("status", "done").order("created_at", { ascending: false }).limit(3),
+    ]);
+    const g = (guides || []).filter((x: any) => !usedRefs.has("guide:" + x.slug)).slice(0, 2);
+    const q = (answers || []).filter((x: any) => !usedRefs.has("answer:" + x.id)).slice(0, 3);
+    const opp = (research || []).flatMap((r: any) => (r.proof?.opportunities || []).map((o: any) => ({ ...o }))).slice(0, 4);
+    const ideas = (research || []).flatMap((r: any) => r.proof?.content_ideas || []).slice(0, 4);
+    if (g.length || q.length || opp.length) {
+      zaraSlot.category = "educational"; zaraSlot.uses_manus_visual = false; zaraSlot.visual_role = "text_card"; zaraSlot.from_zara = true;
+      zaraBrief = `THIS WEEK'S "FROM OUR RESEARCH" POST is the 08:00 post. Build it from ONE item of Zara's work below (prefer a new guide, then a question real business owners asked, then her research). Teach the key point in plain words, keep facts exactly as given (no new figures), and set "zara_source" to the item's ref.${g.length ? " For a guide, send people to read it: on Facebook use the full link; on Instagram say 'full guide: link in our bio'." : ""}
+Zara's guides:\n${g.map((x: any) => `- ref guide:${x.slug} | "${x.title}" | short answer: ${String(x.answer || "").slice(0, 400)} | link https://residentbookkeeper.com/guides/${x.slug}`).join("\n") || "- none"}
+Questions business owners asked (Zara's forum answers):\n${q.map((x: any) => `- ref answer:${x.id} | ${x.payload?.question} | her answer: ${String(x.body || "").slice(0, 400)}`).join("\n") || "- none"}
+Zara's recent research:\n${opp.map((o: any) => `- ref research:${String(o.headline || "").slice(0, 60)} | ${o.headline}: ${o.why_it_matters} (angle: ${o.angle_for_trb}) source ${o.source_url}`).join("\n") || "- none"}${ideas.length ? "\nZara's content ideas: " + ideas.map((i: any) => typeof i === "string" ? i : JSON.stringify(i)).join(" | ") : ""}`;
+    }
+  }
+  const sendImages = zaraBrief ? [] : images;
   // Extra rules Nancy can change without a code update (trb_growth_config.amara_rules).
   const { data: cfg } = await admin.from("trb_growth_config").select("amara_rules").eq("id", true).maybeSingle();
   const system = `You are Amara, Social Media & Growth Manager at The Resident Bookkeeper (Instagram @theresidentbookkeeper and Facebook). You write the daily posts Nancy approves and schedules.\n${SOCIAL_RULES}${cfg?.amara_rules ? "\nMORE RULES FROM NANCY:\n" + cfg.amara_rules : ""}`;
@@ -303,14 +328,14 @@ DAILY PUBLISHING FORMAT (follow exactly): 08:00 = one single-image post led by a
 The price card must use only the current approved price list and show the package, inclusions, who it suits, and the price. Keep tax filing separate/additional if mentioned.
 Keep one consistent TRB frame: generous warm cream/ivory background, deep charcoal text, strategic deep-red emphasis/CTA, approved TRB logo in the same position, serif headline + clean sans-serif body, generous whitespace, and no deep forest green or gold.
 The 08:00 visual_brief must specify the photo subject/composition; the 13:00 visual_brief must specify each carousel slide; the 16:00 visual_brief must specify the price-card layout and exact approved price. If no actual photo asset is attached, state that a photo asset is still required; do not pretend a visual file has been created.
-${images.length ? "The attached image is the approved photo/visual Nancy supplied for the 08:00 slot. Use it as the exact visual reference; do not invent a different frame." : "No uploaded photo is waiting. Write the photo direction and card copy as visual briefs only; do not claim to have generated image files."}
+${zaraBrief ? zaraBrief : images.length ? "The attached image is the approved photo/visual Nancy supplied for the 08:00 slot. Use it as the exact visual reference; do not invent a different frame." : "No uploaded photo is waiting. Write the photo direction and card copy as visual briefs only; do not claim to have generated image files."}
 ${international ? `This week's ONE international post is the 13:00 post: write it for small businesses in ${intlCountry} (local currency and examples, no naira, no POS). Every other post is for Nigeria.` : "All posts today are for Nigeria (this week's international post is already planned)."}
 The 16:00 price post is for the ${promoPlan} plan in Nigeria: ${promoPlan === "Custom" ? "a custom quote for businesses with over 800 transactions a month AND more than 10 bank or card accounts; no fixed price" : `${PLAN_PRICES.Nigeria[promoPlan]} a month`}. Include: ${PLAN_INFO[promoPlan].lines.join("; ")}. Who it suits: ${PLAN_INFO[promoPlan].suits}. Say the final price is confirmed in writing after a free Books Health Check. The price card picture is made by the system, so leave its "card" empty.
 The ONLY phone and WhatsApp number is +234 802 600 0078, in every market.
 ${focus ? `Instruction from Nancy: ${focus}\n` : ""}DO NOT REPEAT these recent and planned posts (hooks and topics), and do not reuse their angle:
 ${H.slice(0, 80).map((h: any) => `- [${h.category}] ${h.hook}${h.topic ? " / " + h.topic : ""}`).join("\n")}
 Reply with ONE fenced json block exactly in this shape, one entry per slot in the same order: ${POST_SCHEMA}`;
-  const out = await aiJson(system, prompt, images);
+  const out = await aiJson(system, prompt, sendImages);
   const posts = (out.posts || []).slice(0, plan.length);
   if (!posts.length) throw new Error("Amara's draft came back empty.");
   const made: string[] = [];
@@ -336,12 +361,13 @@ Reply with ONE fenced json block exactly in this shape, one entry per slot in th
     p.caption_instagram = tidy(p.caption_instagram); p.caption_facebook = tidy(p.caption_facebook);
     if (["interactive"].includes(p.category) && !p.comment_answer) p.comment_answer = "Thank everyone who answered, then share the answer and one useful tip.";
     const when = `${day}T${slot.time_lagos}:00+01:00`;
+    if ((slot as any).from_zara) p.from_zara = { ref: String(p.zara_source || "").slice(0, 200) || "research", week_of: day };
     const useVis = slot.uses_manus_visual && vis;
     const payload = { ...p, best_time_lagos: `${day} ${slot.time_lagos}`, planned_for: when, visual_id: useVis ? vis.id : null, storage_path: useVis ? vis.storage_path : null, visual_file: useVis ? vis.file_name : null };
     const { data: ap } = await admin.from("trb_approvals").insert({ owner_id: owner, employee_id: "amara", kind: "social_post", title: `${day.slice(5)} ${slot.time_lagos} · ${p.title || p.hook}`, body: p.caption_instagram, payload }).select("id").single();
     await admin.from("trb_social_posts").insert({ owner_id: owner, planned_for: when, category: p.category, format: p.format, hook: p.hook, topic: p.problem || p.title, caption_instagram: p.caption_instagram, caption_facebook: p.caption_facebook, comment_answer: p.comment_answer || null, visual_id: useVis ? vis.id : null, approval_id: ap?.id, source: "amara", status: "draft" });
     if (useVis) await admin.from("trb_social_visuals").update({ status: "used", used_by: ap?.id }).eq("id", vis.id);
-    made.push(`${slot.time_lagos} ${p.category}${useVis ? " (Manus visual)" : ""}`);
+    made.push(`${slot.time_lagos} ${p.category}${useVis ? " (Manus visual)" : ""}${(slot as any).from_zara ? " (from Zara's research)" : ""}`);
   }
   const summary = `Drafted ${made.length} post(s) for ${day}: ${made.join(", ")}. Waiting for your approval.${vis ? "" : " No Manus visual was waiting: upload one in AI Workforce > Amara's studio."}`;
   await log(admin, owner, "amara", "daily_post", "done", summary, { day, posts: made });
