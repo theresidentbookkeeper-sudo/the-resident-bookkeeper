@@ -12,7 +12,7 @@ import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 const MODEL = "claude-sonnet-4-5";
 const SITE = "https://residentbookkeeper.com";
 const MARKETS = ["Nigeria", "United States", "United Kingdom", "Canada", "Australia"];
-const SERVICES = "monthly bookkeeping and bank reconciliation, catch-up/clean-up bookkeeping, management accounts and financial reports, payroll support, and TRB Books Lite (an AI-run monthly bookkeeping plan for small Nigerian businesses: upload bank statements, get reports)";
+const SERVICES = "monthly bookkeeping and bank reconciliation, catch-up/clean-up bookkeeping, management accounts and financial reports, payroll support, TRB Books Lite (an AI-run monthly bookkeeping plan for small Nigerian businesses, freelancers and content creators: upload bank statements, get reports), and personal bookkeeping for business owners, executives, freelancers and content creators worldwide (personal and household accounts, income from several platforms, tax-ready records)";
 // Approved price list (matches the website). Plans: Essentials up to 150 transactions/2 accounts; Growth up to 400/5; Premium up to 800/10; over that is a custom quote.
 const PRICES = "APPROVED PRICES (quote only these; final price is confirmed in writing after a free Books Health Check). Nigeria: Books Lite ₦100,000 a year (2 accounts, 100 transactions a month); Essentials ₦150,000/month; Growth ₦300,000/month; Premium ₦550,000/month; Catch-up ₦100,000 per month of records; Clean-up from ₦250,000. United States: Essentials $299, Growth $499, Premium $849 a month; Catch-up $199 per month of records; Clean-up from $499. United Kingdom: Essentials £229, Growth £399, Premium £679 a month; Catch-up £159 per month; Clean-up from £399. Canada: Essentials C$399, Growth C$679, Premium C$1,149 a month; Catch-up C$269 per month; Clean-up from C$679. Australia: Essentials A$449, Growth A$749, Premium A$1,279 a month; Catch-up A$299 per month; Clean-up from A$749. Plan limits: Essentials up to 150 transactions and 2 bank or card accounts; Growth up to 400 and 5; Premium up to 800 and 10; above that is a custom quote. Never invent discounts or other prices.";
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-trb-cron", "Access-Control-Allow-Methods": "POST, OPTIONS" };
@@ -182,7 +182,7 @@ async function enrichContacts(admin: SupabaseClient, owner: string, ids: string[
   if (!ids.length) return [];
   const { data: rows } = await admin.from("leads").select("id,name,country,business_type,email,phone,notes").in("id", ids);
   const found: any[] = [];
-  for (const l of (rows || []).filter((r: any) => !r.email && !r.phone && !/^\S+ client:/i.test(r.name)).slice(0, 6)) {
+  for (const l of (rows || []).filter((r: any) => !r.email && !r.phone && !/^\S+ client:/i.test(r.name) && !/Private individual/i.test(String(r.notes || ""))).slice(0, 6)) {
     const web = String(l.notes || "").match(/(?:Website|Company website):\s*(https?:\/\/\S+)/i)?.[1] || "";
     const host = web && !/facebook|instagram|linkedin|upwork|indeed|jobberman|myjobmag|thesun|news/i.test(web) ? web.replace(/^https?:\/\//, "").split("/")[0] : "";
     const qs = [
@@ -206,6 +206,46 @@ async function enrichContacts(admin: SupabaseClient, owner: string, ids: string[
     found.push({ id: l.id, name: l.name, person, email: !!email, phone: !!phone });
   }
   return found;
+}
+
+// ---------- Zara: people asking for help with their own finances (Nancy, 22 Nov 2026) ----------
+// Business owners/executives wanting personal bookkeeping, freelancers and content creators, worldwide.
+// Private individuals: only people who PUBLICLY asked for this help are saved, and only with the post link.
+// Their personal contact details are never looked up; Maya replies on the platform where they asked.
+async function zaraPersonal(admin: SupabaseClient, owner: string) {
+  const since = new Date(Date.now() - 120 * 864e5).toISOString();
+  const { data: prev } = await admin.from("leads").select("notes").eq("owner_id", owner).like("source", "Personal bookkeeping request%").gte("created_at", since).limit(500);
+  const seen = new Set<string>();
+  for (const l of prev || []) for (const u of String(l.notes || "").match(/https?:\/\/\S+/g) || []) seen.add(u.replace(/[).,]+$/, ""));
+  const queries = [
+    "site:reddit.com freelancer need a bookkeeper OR \"recommend an accountant\" self-employed income tracking",
+    "site:reddit.com content creator OR YouTuber OR influencer bookkeeping taxes help need accountant",
+    "site:upwork.com/freelance-jobs personal bookkeeping OR \"personal finances\" OR \"household bookkeeping\"",
+    "\"personal bookkeeper\" OR \"personal bookkeeping\" business owner OR executive looking for help",
+    "site:nairaland.com freelancer OR \"content creator\" OR influencer accountant bookkeeping tax records",
+  ];
+  const batches = await Promise.all(queries.map((q) => tavilySearch(q, "basic", "month").catch(() => [])));
+  const evidence = batches.flat().filter((r: any) => r?.url && !seen.has(r.url)).slice(0, 25).map((r: any) => ({ title: r.title, url: r.url, content: String(r.content || "").slice(0, 900), published_date: r.published_date || null }));
+  if (!evidence.length) return [];
+  const out = await aiJson(`You are Zara, Research & Business Development Manager at The Resident Bookkeeper. Today is ${today()}. Use ONLY the supplied search results; never invent people, posts or links.`,
+    `Pick up to 5 RECENT public posts where a person is ASKING for help with their own bookkeeping or personal finances: a business owner or executive wanting personal or household bookkeeping, a freelancer, or a content creator/YouTuber/influencer (any country). Only real requests for help or recommendations (not articles, adverts or people offering services). Skip anything clearly older than 60 days.
+Reply with ONE fenced json block: {"people":[{"label":"their public username or 'Reddit user' style label (never guess a real name)","who":"business owner | executive | freelancer | content creator","platform":"Reddit | Upwork | Nairaland | X | Other","country":"if stated, else empty","post_url":"URL copied exactly from the results","need":"what they asked for, in one or two lines"}]}
+SEARCH RESULTS:\n${JSON.stringify(evidence)}`);
+  const allowed = new Set(evidence.map((e: any) => e.url));
+  const added: any[] = [];
+  for (const h of (out.people || []).slice(0, 5)) {
+    const url = String(h.post_url || "").trim();
+    if (!allowed.has(url) || seen.has(url)) continue;
+    const platform = String(h.platform || "Other").slice(0, 30);
+    const name = `${platform} ${String(h.who || "person").slice(0, 30)}: ${String(h.label || "").slice(0, 40) || String(h.need || "").slice(0, 40)}`;
+    const { data: lead, error } = await admin.from("leads").insert({
+      owner_id: owner, name, business_type: `Personal finances (${h.who || "individual"})`, country: h.country || null,
+      source: `Personal bookkeeping request — ${platform}`, stage: "Prospect", email: null, phone: null,
+      notes: `Public request on ${platform}\nPost: ${url}\nWhat they asked: ${h.need || ""}\nPrivate individual: reply on the platform only; do not look up personal contact details.\nAdded by Zara on ${today()}.`,
+    }).select("id,name").single();
+    if (!error && lead) { added.push({ id: lead.id, name: lead.name, platform, url }); seen.add(url); }
+  }
+  return added;
 }
 
 async function zara(admin: SupabaseClient, owner: string, focus = "") {
@@ -258,9 +298,11 @@ Aim for 5 prospects (at least 3 whenever the evidence names suitable businesses)
   }
   let hiring: any[] = [], contacts: any[] = [];
   try { hiring = await zaraHiring(admin, owner, known); } catch (e) { if (e instanceof NeedsKey) throw e; console.log("hiring search failed", (e as Error).message); }
+  let personal: any[] = [];
+  try { personal = await zaraPersonal(admin, owner); } catch (e) { if (e instanceof NeedsKey) throw e; console.log("personal search failed", (e as Error).message); }
   try { contacts = await enrichContacts(admin, owner, [...added, ...hiring].map((x: any) => x.id)); } catch (e) { if (e instanceof NeedsKey) throw e; console.log("contact lookup failed", (e as Error).message); }
-  const summary = `Research done: ${(out.opportunities || []).length} opportunities, ${added.length} new prospect(s) and ${hiring.length} business(es) hiring a bookkeeper saved as leads; contacts found for ${contacts.length}.`;
-  await log(admin, owner, "zara", "daily_research", "done", summary, { opportunities: out.opportunities || [], content_ideas: out.content_ideas || [], prospects_added: added, hiring_added: hiring, contacts_found: contacts });
+  const summary = `Research done: ${(out.opportunities || []).length} opportunities, ${added.length} new prospect(s) and ${hiring.length} business(es) hiring a bookkeeper and ${personal.length} person(s) asking for personal bookkeeping saved as leads; contacts found for ${contacts.length}.`;
+  await log(admin, owner, "zara", "daily_research", "done", summary, { opportunities: out.opportunities || [], content_ideas: out.content_ideas || [], prospects_added: added, hiring_added: hiring, personal_added: personal, contacts_found: contacts });
   return summary;
 }
 
@@ -467,7 +509,7 @@ async function maya(admin: SupabaseClient, owner: string, focus = "") {
   const messaged = new Set((fu || []).filter((f: any) => f.message || f.status === "Sent").map((f: any) => f.lead_id));
   const todo = (leads || []).filter((l: any) => !drafted.has(l.id) && !messaged.has(l.id)).slice(0, 8);
   if (!todo.length) { const s = "No new leads waiting for a first message."; await log(admin, owner, "maya", "first_messages", "skipped", s); return s; }
-  const tool = { name: "message", description: "First outreach message for one lead.", input_schema: { type: "object", required: ["channel", "message"], properties: { channel: { type: "string", enum: ["whatsapp", "email", "instagram_dm", "linkedin", "upwork_proposal"] }, subject: { type: "string" }, message: { type: "string" }, reason: { type: "string" } } } };
+  const tool = { name: "message", description: "First outreach message for one lead.", input_schema: { type: "object", required: ["channel", "message"], properties: { channel: { type: "string", enum: ["whatsapp", "email", "instagram_dm", "linkedin", "upwork_proposal", "platform_reply"] }, subject: { type: "string" }, message: { type: "string" }, reason: { type: "string" } } } };
   const system = `You are Maya, Sales & Client Acquisition Manager at The Resident Bookkeeper (${SITE}). TRB sells: ${SERVICES}.
 Your job is to write first messages that get a REPLY and turn prospects into leads and clients. Not polite filler: a specific, useful, confident sales message.
 TONE: warm, confident, plain English a busy owner understands; British spelling; short paragraphs; no jargon; no hype words ("revolutionary", "best-in-class"); no "no pressure at all", "just let me know", "I'd love to"; no emojis except ✔ ticks in WhatsApp lists.
@@ -489,6 +531,7 @@ HIRING LEADS (source starts with "Hiring a bookkeeper"): they posted a job for a
 - Upwork posts: channel "upwork_proposal". Write an Upwork proposal cover letter in Nancy Bello's first-person voice (it is sent from her Upwork account), 120 to 180 words: their exact tasks and how we'd do them, that she runs a small bookkeeping team (The Resident Bookkeeper), one relevant result or experience line, one question. Write as "I" (Nancy) throughout, never "Nancy Bello" in the third person. Describe her accurately: "an accountant with more than 15 years' experience" who runs a small bookkeeping team; never add titles or qualifications such as "Chartered", "CPA" or "certified". NO prices or rates in the letter (the bid amount is set on Upwork), and NO phone numbers, emails, website or links (Upwork rules). End with "Nancy Bello" on its own line (no Maya signature).
 - LinkedIn posts: channel "linkedin", a short LinkedIn message of 70 to 120 words with the Health Check link and the call/WhatsApp line.
 - Job boards (Indeed, Jobberman, MyJobMag, Seek, Reed) and LinkedIn: if Zara found a direct contact (email or phone, and a "Contact person" in the notes), write DIRECTLY to that person by first name (email, or WhatsApp in Nigeria) instead of applying on the platform. Only if there is no direct contact, use the platform: "linkedin" for LinkedIn and say in "reason" to apply or message through the job post.
+PERSONAL FINANCE LEADS (source starts with "Personal bookkeeping request"): a private person (business owner, executive, freelancer or content creator) publicly asked for help with their own money. Channel "platform_reply" (Upwork posts: "upwork_proposal"): a reply on the platform where they asked, written in Nancy Bello's first person (she posts it from her own account), 90 to 160 words. First genuinely answer their question with one or two practical tips (e.g. separate business and personal accounts, track income from every platform monthly, keep receipts for allowable costs, set aside tax). Then one honest line: "I run a bookkeeping firm, The Resident Bookkeeper, and we keep personal and freelancer books monthly", with TRB Books Lite (₦100,000 a year) for people in Nigeria; for other countries no price, just "happy to send details". Reddit: no phone numbers or links, just "feel free to DM me". Other platforms may add "Call or WhatsApp +234 802 600 0078". No signature line. Never mention that we searched for them.
 HONESTY: Zara research and "Research — approval required" records are cold prospects: never say they asked to hear from us. Only treat a lead as inbound if the source clearly records a form, pricing, Books Lite sign-up, referral or direct enquiry; then thank them for getting in touch and answer what they asked. Never contact bounced, suppressed, opt-out or previously contacted leads.
 ${PRICES}${focus ? `\nInstruction from Nancy: ${focus}` : ""}`;
   const done: any[] = [];
@@ -502,9 +545,11 @@ ${PRICES}${focus ? `\nInstruction from Nancy: ${focus}` : ""}`;
       const ig = /instagram\.com/i.test(String(l.notes || "")), fbk = /facebook\.com/i.test(String(l.notes || ""));
       const upwork = /upwork/i.test(String(l.source || ""));
       if (upwork) m.channel = "upwork_proposal";
-      const reachable = (c: string) => (c === "whatsapp" && !!l.phone) || (c === "email" && !!l.email) || (c === "instagram_dm" && ig) || c === "linkedin" || (c === "upwork_proposal" && upwork);
+      else if (/^Personal bookkeeping request/.test(String(l.source || ""))) m.channel = "platform_reply";
+      const reachable = (c: string) => (c === "whatsapp" && !!l.phone) || (c === "email" && !!l.email) || (c === "instagram_dm" && ig) || c === "linkedin" || (c === "upwork_proposal" && upwork) || (c === "platform_reply" && /^Personal bookkeeping request/.test(String(l.source || "")));
       if (!reachable(m.channel)) m.channel = String(l.country || "").toLowerCase() === "nigeria" && l.phone ? "whatsapp" : l.email ? "email" : l.phone ? "whatsapp" : ig ? "instagram_dm" : "linkedin";
-      if (upwork) m.reason = `Submit this as a proposal on Upwork from your account: ${String(l.notes || "").match(/https?:\/\/\S+/)?.[0] || ""}`;
+      if (m.channel === "platform_reply") m.reason = `Post this as a reply from your own account on the original post: ${String(l.notes || "").match(/https?:\/\/\S+/)?.[0] || ""}`;
+      else if (upwork) m.reason = `Submit this as a proposal on Upwork from your account: ${String(l.notes || "").match(/https?:\/\/\S+/)?.[0] || ""}`;
       else if (!l.email && !l.phone) m.reason = `${m.reason ? m.reason + " " : ""}No public email or phone yet: send via ${ig ? "Instagram DM" : fbk ? "their Facebook page" : "their website contact form or LinkedIn"}.`;
       const { data: ap } = await admin.from("trb_approvals").insert({ owner_id: owner, employee_id: "maya", kind: "outreach_message", title: `${m.channel} to ${l.name}`, body: m.message, payload: { lead_id: l.id, lead_name: l.name, channel: m.channel, subject: m.subject || null, phone: l.phone, email: l.email, reason: m.reason || null } }).select("id").single();
       done.push({ lead: l.name, approval_id: ap?.id });
