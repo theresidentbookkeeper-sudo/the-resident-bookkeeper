@@ -5,10 +5,14 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { renderCard } from "./cardpng.ts";
+import { fixPhones } from "./card.ts";
 
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { "Content-Type": "application/json" } });
 
+// Amara now writes the card text herself (payload.card); price cards are built from the approved price table.
+const usable = (c: any) => c && typeof c === "object" && (c.style === "price" ? !!(c.plan && c.price) : !!c.headline && !/text card|background|layout|headline '/i.test(String(c.headline)));
 async function cardSpec(p: any) {
+  if (usable(p.card)) return p.card;
   const key = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY") || Deno.env.get("GEMINI_KEY");
   const brief = String(p.visual_brief || "");
   const prompt = `Turn this social media post into the text for its image card. Reply with ONLY JSON:
@@ -30,9 +34,15 @@ Caption: ${String(p.caption_instagram || "").slice(0, 1500)}`;
       } catch (e) { console.log("spec", model, String(e)); }
     }
   }
-  // Fallback: "headline / line / line / button" from the brief.
-  const bits = brief.replace(/^.*?:\s*/, "").split(/\s*[\/|]\s*/).filter(Boolean);
-  return { kicker: "", headline: bits[0] || p.hook, lines: bits.slice(1, -1).slice(0, 4), button: bits.length > 2 ? bits[bits.length - 1] : "Learn More", style: /quiz|poll/i.test(p.format || "") ? "options" : "checklist" };
+  // Fallback: "headline / line / line / button" from the brief, without breaking prices such as "£399/month",
+  // and never using a design description ("Text card with bright cream background ...") as the headline.
+  const clean = brief.replace(/\b(\d[\d,.]*)\s*\/\s*(month|year|mo)\b/gi, "$1 a $2");
+  const quoted = [...clean.matchAll(/['‘“"]([^'’”"]{3,80})['’”"]/g)].map((m) => m[1]);
+  const bits = clean.replace(/^.*?:\s*/, "").split(/\s*[\/|]\s*/).filter(Boolean);
+  const descriptive = /text card|background|layout|font|colour|color/i;
+  const headline = quoted.find((q) => !descriptive.test(q)) || (!descriptive.test(bits[0] || "") && bits[0]) || p.hook;
+  const lines = bits.length > 2 && !descriptive.test(bits[0]) ? bits.slice(1, -1).slice(0, 4) : [];
+  return { kicker: "", headline, lines, button: (lines.length && bits[bits.length - 1].replace(/^button:?\s*/i, "")) || "Learn More", style: /quiz|poll/i.test(p.format || "") ? "options" : "checklist" };
 }
 
 Deno.serve(async (req) => {
@@ -40,15 +50,26 @@ Deno.serve(async (req) => {
   const { data: tok } = await admin.from("trb_internal_secrets").select("value").eq("name", "visuals_token").maybeSingle();
   if (!tok?.value || req.headers.get("x-visuals-token") !== tok.value) return json({ error: "Not allowed." }, 401);
   const body = await req.json().catch(() => ({}));
+  // {action:"sign", paths:[...]} -> short-lived public links so Metricool can fetch the pictures.
+  if (body.action === "sign") {
+    const out: Record<string, string | null> = {};
+    for (const path of (body.paths || []).slice(0, 50)) {
+      const { data } = await admin.storage.from("social-visuals").createSignedUrl(String(path), Number(body.expires) || 7 * 86400);
+      out[path] = data?.signedUrl || null;
+    }
+    return json({ ok: true, urls: out });
+  }
   let q = admin.from("trb_approvals").select("*").eq("kind", "social_post").eq("employee_id", "amara");
-  q = body.all_pending ? q.eq("status", "pending") : q.eq("id", String(body.approval_id || ""));
+  // {rerender_ids:[...]} redraws the card of those posts even if they already have one (not Manus visuals).
+  const force = Array.isArray(body.rerender_ids) && body.rerender_ids.length > 0;
+  q = force ? q.in("id", body.rerender_ids.map(String)) : body.all_pending ? q.eq("status", "pending") : q.eq("id", String(body.approval_id || ""));
   const { data: aps } = await q;
   const done: string[] = [];
   for (const a of aps || []) {
     const p = a.payload || {};
-    if (p.storage_path) continue;
+    if (p.storage_path && !(force && p.visual_kind === "card")) continue;
     try {
-      const spec = await cardSpec(p);
+      const spec = JSON.parse(fixPhones(JSON.stringify(await cardSpec(p))));
       const png = await renderCard(spec);
       const path = `cards/${String(p.best_time_lagos || a.created_at).replace(/[^0-9]/g, "").slice(0, 12)}-${String(a.id).slice(0, 8)}.png`;
       const up = await admin.storage.from("social-visuals").upload(path, png, { contentType: "image/png", upsert: true });
