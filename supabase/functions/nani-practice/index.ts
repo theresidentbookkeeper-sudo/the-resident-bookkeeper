@@ -56,6 +56,25 @@ const ANSWERS: { re: RegExp; reply: string; none?: boolean; send?: string }[] = 
   { re: /opening balance|2,?162,?000|2,?150,?000/, reply: "I don't know. Use what the accountant gave." },
   { re: /128,?000|fresh farms?[\s\S]{0,40}(12|13|reversal|reversed|failed)/, reply: "The first transfer failed and the bank reversed it, so I sent it again." },
 ];
+// What Kemi would answer or send for a piece of text.
+function matchText(text: string) {
+  const answers = ANSWERS.filter((a) => a.re.test(text));
+  // A request about 2026 gets the 2026 files; the 2025 held-back files only if it also mentions 2025 (or no year).
+  const y26 = /2026/.test(text), y25 = /2025/.test(text) || !y26;
+  const names = new Set(y25 ? DOCS.filter(([, re]) => re.test(text)).map(([n]) => n) : []);
+  if (y25) answers.forEach((a) => a.send && names.add(a.send));
+  const hits: [string, any, string][] = [...DOCS.filter(([n]) => names.has(n)), ...(y26 ? docs2026(text).map(([n, c]) => [n, null, c] as [string, any, string]) : [])];
+  return { answers, hits };
+}
+// The new part of an email: drop quoted replies and signatures.
+function freshText(body: string) {
+  const lines: string[] = [];
+  for (const l of String(body || "").split(/\r?\n/)) {
+    if (/^\s*>/.test(l) || /^On .+wrote:\s*$/.test(l) || /^-{2,}\s*Original Message/i.test(l)) break;
+    lines.push(l);
+  }
+  return lines.join("\n").trim();
+}
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { "Content-Type": "application/json" } });
 const b64 = (u: Uint8Array) => { let s = ""; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); };
 
@@ -84,6 +103,37 @@ Deno.serve(async (req) => {
     return json({ ok: true, done });
   }
 
+  // An email a team member sent to info@: Kemi questions become a practice request (answered by the flow below,
+  // via the request trigger); anything else gets a short acknowledgement so nobody feels ignored.
+  if (body.inbox_id) {
+    const { data: m } = await admin.from("trb_inbox").select("*").eq("id", String(body.inbox_id)).single();
+    if (!m || m.direction !== "in" || m.status === "done") return json({ skipped: "not a new email" });
+    const from = String(m.from_email || "").toLowerCase();
+    const { data: e } = await admin.from("employees").select("id,name,portal_user_id,work_email,email").or(`work_email.eq.${from},email.eq.${from}`).eq("status", "Active").not("work_email", "is", null).maybeSingle();
+    if (!e) return json({ skipped: "not from the team" });
+    const subject = String(m.subject || "").replace(/^\s*((re|fw|fwd)\s*:\s*)+/i, "").trim();
+    const fresh = freshText(m.text_body || m.snippet || "");
+    if (fresh.length < 160 && /^(hi+|hello|dear)?[\s\S]{0,30}\b(thanks|thank you|noted|well received|ok|okay)\b/i.test(fresh.replace(/\s+/g, " "))) {
+      await admin.from("trb_inbox").update({ status: "read" }).eq("id", m.id);
+      return json({ skipped: "thank-you note" });
+    }
+    const efirst = String(e.name || "").split(" ")[0];
+    const { data: pc } = await admin.from("clients").select("id,name,owner_id").ilike("name", `PRACTICE%(${String(e.work_email || e.name).split(/[@ ]/)[0]}%`).limit(1).maybeSingle();
+    const ask = `${subject}\n${fresh}`.toLowerCase();
+    const { answers: a1, hits: h1 } = matchText(ask);
+    if (pc && (a1.length || h1.length || /kemi/.test(ask))) {
+      await admin.from("trb_inbox").update({ status: "done" }).eq("id", m.id);
+      await admin.from("client_document_requests").insert({ owner_id: pc.owner_id, client_id: pc.id, title: (subject || "Question for Kemi").slice(0, 190), details: `Sent by email to info@ on ${String(m.received_at || m.created_at).slice(0, 10)}:\n${fresh}`.slice(0, 2000), status: "requested", created_by: e.portal_user_id });
+      return json({ ok: true, routed: "practice request" });
+    }
+    await mail(e.work_email || e.email, `Re: ${subject || "your email"}`,
+      `Hello ${efirst},\n\nThank you for your email ("${subject || "no subject"}"). I've passed it to Nancy and she will get back to you.\n\nIf it is something you need from a client (a document, or an answer from Kemi on the practice client), please use "Ask the client for documents" in your workspace. That way it reaches the client straight away and you can see when it has been answered.${SIGN}`);
+    await mail(NANCY, `${e.name} emailed info@: ${subject || "(no subject)"}`,
+      `Hello Nancy,\n\n${e.name} sent this to info@ and it needs you:\n\n${fresh.slice(0, 3000)}\n\nI've told ${efirst} you will get back to them. Reply from info@ or from the portal Mail view.${SIGN}`);
+    await admin.from("trb_ai_work_log").insert({ owner_id: m.owner_id, employee_id: "nani", job: "team_email", status: "done", summary: `Acknowledged ${e.name}'s email "${subject}" and passed it to Nancy.`, proof: { inbox_id: m.id } });
+    return json({ ok: true, routed: "acknowledged" });
+  }
+
   const { data: r } = await admin.from("client_document_requests").select("*").eq("id", String(body.request_id || "")).single();
   if (!r) return json({ error: "Request not found." }, 404);
   const { data: c } = await admin.from("clients").select("id,name").eq("id", r.client_id).single();
@@ -91,14 +141,11 @@ Deno.serve(async (req) => {
   const { data: emp } = await admin.from("employees").select("name,work_email,email").eq("portal_user_id", r.created_by).maybeSingle();
   const who = emp?.name || "the bookkeeper", first = who.split(" ")[0], to = emp?.work_email || emp?.email || "";
   const text = `${r.title} ${r.details || ""}`.toLowerCase();
-  const answers = ANSWERS.filter((a) => a.re.test(text));
-  // A request about 2026 gets the 2026 files; the 2025 held-back files only if it also mentions 2025 (or no year).
-  const y26 = /2026/.test(text), y25 = /2025/.test(text) || !y26;
-  const names = new Set(y25 ? DOCS.filter(([, re]) => re.test(text)).map(([n]) => n) : []);
-  if (y25) answers.forEach((a) => a.send && names.add(a.send));
-  const hits: [string, any, string][] = [...DOCS.filter(([n]) => names.has(n)), ...(y26 ? docs2026(text).map(([n, c]) => [n, null, c] as [string, any, string]) : [])];
+  const { answers, hits } = matchText(text);
 
   if (!hits.length && !answers.length) {
+    if (!body.quiet) await mail(to, `${r.title} - Kemi's Kitchen`,
+      `Hello ${first},\n\nI passed your request ("${r.title}") to Kemi. I don't have an answer from her on this yet, so I've asked Nancy to look at it and she will get back to you.${SIGN}`);
     if (!body.quiet) await mail(NANCY, `Practice request not answered: ${who} asked for "${r.title}"`,
       `Hello Nancy,\n\n${who} asked ${c.name} for:\n${r.title}${r.details ? "\n" + r.details : ""}\n\nNothing in the held-back folder or Kemi's answers matches this, so I have not replied and the request is still open. Tell me what Kemi should say, or reply to ${first} yourself.${SIGN}`);
     await admin.from("trb_ai_work_log").insert({ owner_id: r.owner_id, employee_id: "nani", job: "practice_request", status: "skipped", summary: `${who} asked for "${r.title}" on ${c.name}: no matching practice document or answer.`, proof: { request_id: r.id } });
