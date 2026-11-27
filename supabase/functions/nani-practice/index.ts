@@ -22,6 +22,22 @@ const DOCS: [string, RegExp, string][] = [
   ["WHT credit notes from Greenfield 2025.pdf", /\bwht\b|withholding|credit note|greenfield/, "requested_document"],
   ["Zenova loan offer letter and repayment schedule.pdf", /\bloan|repayment schedule|borrow|facility letter|offer letter|3,?000,?000/, "requested_document"],
 ];
+// 2026 (January to October) documents, released 27 Nov 2026. Used when a request mentions 2026.
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct"];
+function docs2026(text: string): [string, string][] {
+  const months = MONTHS.map((m, i) => (new RegExp(`\\b${m}[a-z]*\\b|2026-${String(i + 1).padStart(2, "0")}|\\b${i + 1}/2026`).test(text) ? i + 1 : 0)).filter(Boolean);
+  const pick = (fn: (m: string) => string) => (months.length ? months : MONTHS.map((_, i) => i + 1)).map((m) => fn(String(m).padStart(2, "0")));
+  const out: [string, string][] = [];
+  if (/statement|\bbank\b/.test(text) && !/supplier|vendor/.test(text)) pick((m) => `Bank statement 2026-${m} Zenova 4417.pdf`).forEach((n) => out.push([n, "bank_statement"]));
+  if (/sales invoice|customer invoice|invoices? (issued|to customers)|(techbridge|brightstar|greenfield|lekki)[\s\S]{0,40}invoice/.test(text)) pick((m) => `Sales invoices 2026-${m}.pdf`).forEach((n) => out.push([n, "receipt_or_invoice"]));
+  if (/cash ?book/.test(text)) out.push(["Kemi's own cash book 2026.xlsx", "requested_document"]);
+  if (/moniepoint|settlement|\bpos\b/.test(text)) out.push(["Moniepoint POS settlement reports 2026.pdf", "requested_document"]);
+  if (/payroll|salar|wage|payslip/.test(text)) out.push(["Payroll schedules 2026.xlsx", "requested_document"]);
+  if (/(tax|pension|paye|vat|remittance|nsitf)[\s\S]*(receipt|evidence|proof|payment)|(receipt|evidence|proof)[\s\S]*(tax|pension|paye|vat|remit)/.test(text)) out.push(["Tax and pension payment receipts 2026.pdf", "receipt_or_invoice"]);
+  if (/\bwht\b|withholding|credit note/.test(text)) out.push(["WHT credit notes from Greenfield 2026.pdf", "requested_document"]);
+  if (/\basset|equipment|generator|laptop|freezer|oven|cooker|fixed asset/.test(text)) out.push(["Asset purchase invoices 2026.pdf", "receipt_or_invoice"]);
+  return out;
+}
 // Kemi's answers (from the reviewer guide's Client answers sheet). "none" = Kemi doesn't have it; "send" also releases a document.
 const TAXR = "Tax and pension payment receipts 2025.pdf";
 const ANSWERS: { re: RegExp; reply: string; none?: boolean; send?: string }[] = [
@@ -76,9 +92,11 @@ Deno.serve(async (req) => {
   const who = emp?.name || "the bookkeeper", first = who.split(" ")[0], to = emp?.work_email || emp?.email || "";
   const text = `${r.title} ${r.details || ""}`.toLowerCase();
   const answers = ANSWERS.filter((a) => a.re.test(text));
-  const names = new Set(DOCS.filter(([, re]) => re.test(text)).map(([n]) => n));
-  answers.forEach((a) => a.send && names.add(a.send));
-  const hits = DOCS.filter(([n]) => names.has(n));
+  // A request about 2026 gets the 2026 files; the 2025 held-back files only if it also mentions 2025 (or no year).
+  const y26 = /2026/.test(text), y25 = /2025/.test(text) || !y26;
+  const names = new Set(y25 ? DOCS.filter(([, re]) => re.test(text)).map(([n]) => n) : []);
+  if (y25) answers.forEach((a) => a.send && names.add(a.send));
+  const hits: [string, any, string][] = [...DOCS.filter(([n]) => names.has(n)), ...(y26 ? docs2026(text).map(([n, c]) => [n, null, c] as [string, any, string]) : [])];
 
   if (!hits.length && !answers.length) {
     if (!body.quiet) await mail(NANCY, `Practice request not answered: ${who} asked for "${r.title}"`,
@@ -92,7 +110,7 @@ Deno.serve(async (req) => {
     const dl = await admin.storage.from(BUCKET).download(`${PACK}/${name}`);
     if (!dl.data) throw new Error(`${name} is missing from the practice folder.`);
     const bytes = new Uint8Array(await dl.data.arrayBuffer());
-    const path = `${c.id}/uploads/practice-2025/requested/${name}`;
+    const path = `${c.id}/uploads/practice-${/2026/.test(name) ? "2026" : "2025"}/requested/${name}`;
     await admin.storage.from(BUCKET).upload(path, bytes, { upsert: true, contentType: dl.data.type || "application/octet-stream" });
     await admin.from("client_files").insert({ owner_id: r.owner_id, client_id: c.id, request_id: r.id, category, file_name: name, storage_path: path, note: `Sent by Nani for Kemi (practice client) in answer to "${r.title}".`, uploaded_by: null, uploader: "client" });
     files.push({ name, bytes });
